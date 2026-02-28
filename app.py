@@ -41,8 +41,14 @@ def hash_password(password):
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def check_password(password, hashed):
-    return bcrypt.checkpw(password.encode(), hashed.encode())
-
+    try:
+        if not hashed:
+            return False
+        if isinstance(hashed, str):
+            hashed = hashed.encode()
+        return bcrypt.checkpw(password.encode(), hashed)
+    except Exception:
+        return False
 def get_user_by_mobile(mobile):
     users = db.collection("users").where("mobile", "==", mobile).stream()
     for user in users:
