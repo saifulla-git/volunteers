@@ -266,23 +266,14 @@ if current_status == "Active":
 
         meeting_id = current_meeting_id
 
-        votes = db.collection("meeting_details") \
-            .where("meeting_id", "==", meeting_id) \
-            .stream()
-
-        st.success("Meeting closed.")
-        
-    
-
-        
-
-        # rest of your logic here
+        votes = db.collection("meeting_details").where(
+            "meeting_id", "==", meeting_id
+        ).stream()
 
         agenda_count = {}
         date_count = {}
         time_count = {}
         place_count = {}
-
         total_votes = 0
 
         for vote in votes:
@@ -302,13 +293,11 @@ if current_status == "Active":
         if total_votes == 0:
             st.error("No votes to finalize.")
         else:
-            # Detect winners
             winning_agenda = max(agenda_count, key=agenda_count.get)
             winning_date = max(date_count, key=date_count.get)
             winning_time = max(time_count, key=time_count.get)
             winning_place = max(place_count, key=place_count.get)
 
-            # Save final result
             db.collection("meeting_results").document(meeting_id).set({
                 "meeting_id": meeting_id,
                 "total_votes": total_votes,
@@ -319,19 +308,12 @@ if current_status == "Active":
                 "finalized_at": datetime.now().strftime("%Y-%m-%d %H:%M")
             })
 
-            # Close meeting
-            db.collection("admin_settings") \
-                .document("meeting_options") \
-                .update({"status": "Closed"})
+            db.collection("admin_settings").document("meeting_options").update({
+                "status": "Closed"
+            })
 
             st.success("Meeting finalized and closed.")
             st.rerun()
-                db.collection("admin_settings") \
-                    .document("meeting_options") \
-                    .update({"status": "Closed"})
-
-                st.warning("Meeting Closed.")
-                st.rerun()
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
