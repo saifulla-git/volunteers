@@ -902,14 +902,14 @@ elif menu == "Reports":
         st.warning("Login required.")
         st.stop()
 
-    user_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
     user_id = st.session_state.get("user_id")
+    user_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
     role = st.session_state.get("role")
 
-    tab1, tab2 = st.tabs(["📌 Complaint", "💡 Suggestions"])
+    tab1, tab2 = st.tabs(["📌 Complaints", "💡 Suggestions"])
 
     # ======================================================
-    # ===================== COMPLAINT ======================
+    # ===================== COMPLAINTS ======================
     # ======================================================
 
     with tab1:
@@ -917,76 +917,121 @@ elif menu == "Reports":
         st.subheader("Submit Complaint")
 
         with st.form("complaint_form"):
-
-            complaint_text = st.text_area("Complaint Details")
-
-            option = st.radio(
-                "Select Action",
-                ["Consider Complaint", "Don't Consider Complaint"]
-            )
-
-            submit = st.form_submit_button("Submit Complaint")
+            complaint_text = st.text_area("Write Complaint")
+            submit = st.form_submit_button("Submit")
 
         if submit:
-
             if complaint_text.strip() == "":
                 st.warning("Complaint cannot be empty.")
             else:
                 db.collection("complaints").add({
-                    "user_id": user_id,
-                    "name": user_name,
                     "complaint": complaint_text.strip(),
-                    "option": option,
-                    "submitted_at": datetime.now()
+                    "created_by": user_id,
+                    "created_name": user_name,
+                    "created_at": datetime.utcnow(),
+                    "likes": 0,
+                    "is_published": False
                 })
-
                 st.success("Complaint submitted.")
                 st.rerun()
 
-        # ---------- GRAPH ----------
         st.divider()
-        st.subheader("Complaint Voting Summary")
+        st.subheader("All Complaints")
 
         complaints = db.collection("complaints").stream()
-
-        consider = 0
-        dont_consider = 0
-        table_data = []
+        complaint_list = []
 
         for c in complaints:
             data = c.to_dict()
+            data["doc_id"] = c.id
+            complaint_list.append(data)
 
-            if data.get("option") == "Consider Complaint":
-                consider += 1
-            else:
-                dont_consider += 1
+        complaint_list = sorted(
+            complaint_list,
+            key=lambda x: x.get("likes", 0),
+            reverse=True
+        )
 
-            table_data.append(data)
+        for comp in complaint_list:
 
-        total = consider + dont_consider
+            doc_id = comp["doc_id"]
+            text = comp.get("complaint")
+            likes = comp.get("likes", 0)
+            is_published = comp.get("is_published", False)
+            creator_name = comp.get("created_name")
 
-        if total > 0:
+            # Highlight if published
+            if is_published:
+                st.markdown("### ✅ Published Complaint")
 
-            import pandas as pd
+            st.markdown(f"### 📝 {text}")
+            st.markdown(f"👍 Likes: **{likes}**")
 
-            percent_data = {
-                "Consider Complaint": round((consider/total)*100,2),
-                "Don't Consider Complaint": round((dont_consider/total)*100,2)
-            }
+            # Show complainer name ONLY if published
+            if is_published:
+                st.caption(f"👤 Complainer: {creator_name}")
 
-            df_percent = pd.DataFrame(percent_data, index=["%"]).T
-            st.bar_chart(df_percent, height=200)
+            # ---------------- LIKE SYSTEM ----------------
+            if comp.get("created_by") != user_id:
 
-            # ---------- ADMIN TABLE ----------
+                existing_like = db.collection("complaints") \
+                    .document(doc_id) \
+                    .collection("likes") \
+                    .where("user_id", "==", user_id) \
+                    .stream()
+
+                if not list(existing_like):
+
+                    if st.button("👍 Like", key=f"like_{doc_id}"):
+
+                        db.collection("complaints") \
+                            .document(doc_id) \
+                            .collection("likes") \
+                            .add({
+                                "user_id": user_id,
+                                "name": user_name,
+                                "liked_at": datetime.utcnow()
+                            })
+
+                        db.collection("complaints") \
+                            .document(doc_id) \
+                            .update({
+                                "likes": likes + 1
+                            })
+
+                        st.rerun()
+                else:
+                    st.success("You liked this.")
+
+            # ---------------- ADMIN PUBLISH ----------------
             if role == "Admin":
-                st.divider()
-                st.subheader("All Complaint Records")
 
-                df_table = pd.DataFrame(table_data)
-                st.dataframe(df_table, use_container_width=True)
+                if not is_published:
+                    if st.button("🚀 Publish", key=f"publish_{doc_id}"):
 
-        else:
-            st.info("No complaint data yet.")
+                        db.collection("complaints") \
+                            .document(doc_id) \
+                            .update({
+                                "is_published": True,
+                                "published_at": datetime.utcnow()
+                            })
+
+                        st.success("Complaint Published to Public.")
+                        st.rerun()
+
+                else:
+                    if st.button("❌ Unpublish", key=f"unpublish_{doc_id}"):
+
+                        db.collection("complaints") \
+                            .document(doc_id) \
+                            .update({
+                                "is_published": False
+                            })
+
+                        st.warning("Complaint Hidden from Public.")
+                        st.rerun()
+
+            st.divider()
 
     # ======================================================
     # ==================== SUGGESTIONS =====================
@@ -997,70 +1042,80 @@ elif menu == "Reports":
         st.subheader("Submit Suggestion")
 
         with st.form("suggestion_form"):
-
-            suggestion_text = st.text_area("Suggestion Details")
-
-            option = st.radio(
-                "Select Action",
-                ["Accept Suggestion", "Reject Suggestion"]
-            )
-
-            submit = st.form_submit_button("Submit Suggestion")
+            suggestion_text = st.text_area("Write Suggestion")
+            submit = st.form_submit_button("Submit")
 
         if submit:
-
             if suggestion_text.strip() == "":
                 st.warning("Suggestion cannot be empty.")
             else:
                 db.collection("suggestions").add({
-                    "user_id": user_id,
-                    "name": user_name,
                     "suggestion": suggestion_text.strip(),
-                    "option": option,
-                    "submitted_at": datetime.now()
+                    "created_by": user_id,
+                    "created_name": user_name,
+                    "created_at": datetime.utcnow(),
+                    "likes": 0
                 })
-
                 st.success("Suggestion submitted.")
                 st.rerun()
 
-        # ---------- GRAPH ----------
         st.divider()
-        st.subheader("Suggestion Voting Summary")
+        st.subheader("All Suggestions")
 
         suggestions = db.collection("suggestions").stream()
-
-        accept = 0
-        reject = 0
-        table_data = []
+        suggestion_list = []
 
         for s in suggestions:
             data = s.to_dict()
+            data["doc_id"] = s.id
+            suggestion_list.append(data)
 
-            if data.get("option") == "Accept Suggestion":
-                accept += 1
-            else:
-                reject += 1
+        suggestion_list = sorted(
+            suggestion_list,
+            key=lambda x: x.get("likes", 0),
+            reverse=True
+        )
 
-            table_data.append(data)
+        for sug in suggestion_list:
 
-        total = accept + reject
+            doc_id = sug["doc_id"]
+            text = sug.get("suggestion")
+            likes = sug.get("likes", 0)
+            creator_name = sug.get("created_name")
 
-        if total > 0:
+            st.markdown(f"### 💡 {text}")
+            st.markdown(f"👍 Likes: **{likes}**")
+            st.caption(f"👤 Suggested by: {creator_name}")
 
-            percent_data = {
-                "Accept Suggestion": round((accept/total)*100,2),
-                "Reject Suggestion": round((reject/total)*100,2)
-            }
+            if sug.get("created_by") != user_id:
 
-            df_percent = pd.DataFrame(percent_data, index=["%"]).T
-            st.bar_chart(df_percent, height=200)
+                existing_like = db.collection("suggestions") \
+                    .document(doc_id) \
+                    .collection("likes") \
+                    .where("user_id", "==", user_id) \
+                    .stream()
 
-            # TABLE VISIBLE TO ALL
+                if not list(existing_like):
+
+                    if st.button("👍 Like", key=f"sug_like_{doc_id}"):
+
+                        db.collection("suggestions") \
+                            .document(doc_id) \
+                            .collection("likes") \
+                            .add({
+                                "user_id": user_id,
+                                "name": user_name,
+                                "liked_at": datetime.utcnow()
+                            })
+
+                        db.collection("suggestions") \
+                            .document(doc_id) \
+                            .update({
+                                "likes": likes + 1
+                            })
+
+                        st.rerun()
+                else:
+                    st.success("You liked this.")
+
             st.divider()
-            st.subheader("All Suggestion Records")
-
-            df_table = pd.DataFrame(table_data)
-            st.dataframe(df_table, use_container_width=True)
-
-        else:
-            st.info("No suggestion data yet.")
