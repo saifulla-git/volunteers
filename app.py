@@ -312,114 +312,183 @@ elif menu == "Admin Panel":
         st.title("👑 Admin Panel")
 
         # ================= MEETING MANAGEMENT =================
-        st.subheader("📅 Meeting Management")
+        selif menu == "Meetings":
 
-        meeting_doc = db.collection("admin_settings").document("meeting_options").get()
-        meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+    import pandas as pd
+    from datetime import datetime, timedelta
 
-        current_meeting_id = meeting_data.get("meeting_id", "Not Set")
-        current_status = meeting_data.get("status", "Closed")
+    st.title("📅 Meetings")
 
-        st.info(f"Current Meeting ID: {current_meeting_id}")
-        st.info(f"Status: {current_status}")
+    # ================= GET CURRENT MEETING =================
+    meeting_doc = db.collection("admin_settings").document("meeting_options").get()
+
+    if not meeting_doc.exists:
+        st.error("No meeting configured.")
+        st.stop()
+
+    meeting_data = meeting_doc.to_dict()
+    meeting_id = meeting_data.get("meeting_id")
+    meeting_status = meeting_data.get("status", "Closed")
+
+    st.subheader("🟢 Current Meeting")
+    st.info(f"Meeting ID: {meeting_id}")
+    st.info(f"Status: {meeting_status}")
+
+    # =========================================================
+    # ================= ACTIVE MEETING ========================
+    # =========================================================
+
+    if meeting_status == "Active":
 
         st.divider()
-        st.subheader("Create New Meeting")
+        st.subheader("📝 Submit Attendance")
 
-        new_meeting_id = st.text_input("Meeting ID")
-        agenda_input = st.text_area("Agenda Options (comma separated)")
-        date_input = st.text_area("Date Options (comma separated)")
-        time_input = st.text_area("Time Options (comma separated)")
-        place_input = st.text_area("Place Options (comma separated)")
+        # -------- USER INFO --------
+        if st.session_state.get("logged_in"):
+            auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
+            user_id = st.session_state.get("user_id")
 
-        # ================= SAVE / ACTIVATE MEETING =================
-        if st.button("Activate Meeting"):
+            st.text_input("Your Name", value=auto_name, disabled=True)
+            clean_name = auto_name.strip().lower()
 
-            if new_meeting_id.strip() == "":
-                st.error("Meeting ID is required.")
-            else:
+        else:
+            user_id = "public"
+            name_input = st.text_input("Your Name")
+            clean_name = name_input.strip().lower()
 
-                # 🔴 Auto close old active meeting
-                if current_status == "Active" and current_meeting_id != "Not Set":
+        # -------- FORM --------
+        with st.form("attendance_form"):
 
-                    db.collection("admin_settings").document("meeting_options").update({
-                        "status": "Closed",
-                        "closed_at": datetime.now()
-                    })
+            attending = st.radio("Will You Attend?", ["Yes", "No"])
+            reason = st.text_area("Reason (Required if No)")
+            submit = st.form_submit_button("Submit Attendance")
 
-                # 🟢 Create new active meeting
-                db.collection("admin_settings").document("meeting_options").set({
-                    "meeting_id": new_meeting_id.strip(),
-                    "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                    "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                    "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                    "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                    "status": "Active",
-                    "created_at": datetime.now()
-                })
+        if submit:
 
-                st.success("New Meeting Activated Successfully.")
-                st.rerun()
+            if clean_name == "":
+                st.warning("Name is required.")
+                st.stop()
 
-        # ================= CLOSE CURRENT MEETING =================
-        if current_status == "Active":
+            if attending == "No" and reason.strip() == "":
+                st.warning("Reason is required if not attending.")
+                st.stop()
 
-            if st.button("Close Current Meeting"):
+            # -------- DUPLICATE CHECK --------
+            existing = db.collection("attendance_details") \
+                .where("meeting_id", "==", meeting_id) \
+                .where("user_id", "==", user_id) \
+                .stream()
 
-                meeting_id = current_meeting_id
+            if list(existing):
+                st.error("Attendance already submitted.")
+                st.stop()
 
-                votes = db.collection("meeting_details") \
-                    .where("meeting_id", "==", meeting_id) \
-                    .stream()
+            # -------- SAVE --------
+            db.collection("attendance_details").add({
+                "meeting_id": meeting_id,
+                "name": clean_name,
+                "user_id": user_id,
+                "attending": attending,
+                "reason": reason.strip() if attending == "No" else "",
+                "submitted_at": datetime.utcnow()
+            })
 
-                agenda_count = {}
-                date_count = {}
-                time_count = {}
-                place_count = {}
-                total_votes = 0
+            st.success("Attendance recorded successfully.")
+            st.rerun()
 
-                for vote in votes:
-                    data = vote.to_dict()
-                    total_votes += 1
+    else:
+        st.warning("Meeting is closed. Attendance disabled.")
 
-                    agenda = data.get("agenda")
-                    date = data.get("date")
-                    time = data.get("time")
-                    place = data.get("place")
+    # =========================================================
+    # ================= ARCHIVE SECTION =======================
+    # =========================================================
 
-                    agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
-                    date_count[date] = date_count.get(date, 0) + 1
-                    time_count[time] = time_count.get(time, 0) + 1
-                    place_count[place] = place_count.get(place, 0) + 1
+    st.divider()
+    st.subheader("📂 Meeting Archive (Last 3 Months)")
 
-                if total_votes == 0:
-                    st.error("No votes to finalize.")
-                else:
+    three_months_ago = datetime.utcnow() - timedelta(days=90)
 
-                    winning_agenda = max(agenda_count, key=agenda_count.get)
-                    winning_date = max(date_count, key=date_count.get)
-                    winning_time = max(time_count, key=time_count.get)
-                    winning_place = max(place_count, key=place_count.get)
+    archive_docs = db.collection("meeting_results").stream()
+    archive_list = []
 
-                    # ✅ Save Results in Archive
-                    db.collection("meeting_archive").document(meeting_id).set({
-                        "meeting_id": meeting_id,
-                        "total_votes": total_votes,
-                        "winning_agenda": winning_agenda,
-                        "winning_date": winning_date,
-                        "winning_time": winning_time,
-                        "winning_place": winning_place,
-                        "closed_at": datetime.now()
-                    })
+    for doc in archive_docs:
+        data = doc.to_dict()
+        finalized_at = data.get("finalized_at")
 
-                    # 🔴 Mark Meeting Closed
-                    db.collection("admin_settings").document("meeting_options").update({
-                        "status": "Closed",
-                        "closed_at": datetime.now()
-                    })
+        if finalized_at:
+            if isinstance(finalized_at, datetime):
+                if finalized_at >= three_months_ago:
+                    archive_list.append(data)
 
-                    st.success("Meeting Finalized & Archived Successfully.")
-                    st.rerun()
+    if not archive_list:
+        st.info("No archived meetings in last 3 months.")
+        st.stop()
+
+    meeting_ids = [m.get("meeting_id") for m in archive_list]
+
+    selected_id = st.selectbox("Select Meeting ID", meeting_ids)
+
+    archive_doc = db.collection("meeting_results").document(selected_id).get()
+
+    if not archive_doc.exists:
+        st.warning("No data found.")
+        st.stop()
+
+    archive_data = archive_doc.to_dict()
+
+    # ================= FINAL RESULTS =================
+    st.divider()
+    st.subheader("🏆 Final Results")
+
+    st.write(f"Total Votes: {archive_data.get('total_votes', 0)}")
+    st.write(f"Winning Agenda: {archive_data.get('winning_agenda')}")
+    st.write(f"Winning Date: {archive_data.get('winning_date')}")
+    st.write(f"Winning Time: {archive_data.get('winning_time')}")
+    st.write(f"Winning Place: {archive_data.get('winning_place')}")
+
+    # ================= ATTENDANCE ANALYTICS =================
+    st.divider()
+    st.subheader("📊 Attendance Analytics")
+
+    attendance_docs = db.collection("attendance_details") \
+        .where("meeting_id", "==", selected_id) \
+        .stream()
+
+    attendance_list = []
+    total_present = 0
+    total_absent = 0
+
+    for doc in attendance_docs:
+        att = doc.to_dict()
+        attendance_list.append(att)
+
+        if att.get("attending") == "Yes":
+            total_present += 1
+        else:
+            total_absent += 1
+
+    total = total_present + total_absent
+
+    if total > 0:
+
+        col1, col2 = st.columns(2)
+        col1.metric("Present", total_present)
+        col2.metric("Absent", total_absent)
+
+        df = pd.DataFrame(attendance_list)
+        st.dataframe(df, use_container_width=True)
+
+        csv = df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            "⬇ Download Attendance CSV",
+            csv,
+            file_name=f"{selected_id}_attendance.csv",
+            mime="text/csv"
+        )
+
+    else:
+        st.info("No attendance data found.")
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
