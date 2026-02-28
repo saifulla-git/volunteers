@@ -96,32 +96,49 @@ if menu == "Public Notice Board":
 
 # ---------------- LOGIN ----------------
 elif menu == "Login":
+
     st.title("🔐 Login")
 
     mobile = st.text_input("Mobile Number")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
+
         user = get_user_by_mobile(mobile)
 
         if not user:
             st.error("User not found")
+
         elif not user.get("is_approved", False):
             st.warning("Account not approved by admin yet.")
+
         elif user.get("is_blocked", False):
             st.error("Your account is blocked.")
+
         elif check_password(password, user["password_hash"]):
+
+            # ✅ SESSION SET
             st.session_state.logged_in = True
             st.session_state.role = user["role"]
             st.session_state.user_id = user["id"]
+
+            # 🔥 AUTO NAME STORE (IMPORTANT)
+            st.session_state.name = user.get("name")
+            st.session_state.father_name = user.get("father_name")
+
             st.success("Login Successful")
             st.rerun()
+
         else:
             st.error("Wrong Password")
-        st.divider()
+
+    st.divider()
+
+    # ---------------- REGISTRATION ----------------
     st.subheader("📝 New Registration")
 
     with st.form("registration_form"):
+
         reg_name = st.text_input("Full Name")
         reg_father = st.text_input("Father Name")
         reg_mobile = st.text_input("Mobile Number")
@@ -129,23 +146,36 @@ elif menu == "Login":
         reg_submit = st.form_submit_button("Submit Registration")
 
         if reg_submit:
-            existing_user = db.collection("users").where("mobile", "==", reg_mobile).stream()
-            if list(existing_user):
-                st.warning("User already registered. Please login.")
+
+            if reg_name.strip() == "" or reg_father.strip() == "" or reg_mobile.strip() == "":
+                st.warning("All fields are required.")
+
             else:
-                existing_request = db.collection("registration_requests").where("mobile", "==", reg_mobile).stream()
-                if list(existing_request):
-                    st.warning("Registration already pending.")
+                existing_user = db.collection("users").where(
+                    "mobile", "==", reg_mobile
+                ).stream()
+
+                if list(existing_user):
+                    st.warning("User already registered. Please login.")
+
                 else:
-                    db.collection("registration_requests").add({
-                        "name": reg_name,
-                        "father_name": reg_father,
-                        "mobile": reg_mobile,
-                        "status": "pending",
-                        "requested_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    })
-                    st.success("Registration request submitted. Wait for admin approval.")
-        
+                    existing_request = db.collection("registration_requests").where(
+                        "mobile", "==", reg_mobile
+                    ).stream()
+
+                    if list(existing_request):
+                        st.warning("Registration already pending.")
+
+                    else:
+                        db.collection("registration_requests").add({
+                            "name": reg_name.strip(),
+                            "father_name": reg_father.strip(),
+                            "mobile": reg_mobile.strip(),
+                            "status": "pending",
+                            "requested_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        })
+
+                        st.success("Registration request submitted. Wait for admin approval.")
   #admin---panel#
 # ---------------- ADMIN PANEL ----------------
 elif menu == "Admin Panel":
