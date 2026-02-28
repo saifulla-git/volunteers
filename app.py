@@ -264,6 +264,4 @@ if st.session_state.logged_in:
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M")
             })
             st.success("Notice Posted")
-            import bcrypt
-st.write(bcrypt.hashpw("Admin123".encode(), bcrypt.gensalt()).decode())
             
