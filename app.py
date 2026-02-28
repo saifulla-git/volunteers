@@ -211,19 +211,52 @@ elif menu == "Logout":
     
 
 # ---------------- DASHBOARD ----------------
-elif menu == "Dashboard":
-    st.title(f"📊 {st.session_state.role} Dashboard")
+st.title("📊 Dashboard")
 
-    col1, col2 = st.columns(2)
+# Get current meeting_id
+doc = db.collection("admin_settings").document("meeting_options").get()
 
-    with col1:
-        total_teams = len(list(db.collection("teams").stream()))
-        st.metric("Total Team Entries", total_teams)
+if doc.exists:
+    meeting_id = doc.to_dict().get("meeting_id")
 
-    with col2:
-        total_meetings = len(list(db.collection("meetings").stream()))
-        st.metric("Total Meetings Recorded", total_meetings)
+    votes = db.collection("meeting_details") \
+        .where("meeting_id", "==", meeting_id) \
+        .stream()
 
+    agenda_count = {}
+    total_votes = 0
+
+    for vote in votes:
+        data = vote.to_dict()
+        total_votes += 1
+        agenda = data.get("agenda")
+        agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+
+    if total_votes > 0:
+
+        # Percentage calculation
+        percent_data = {
+            k: round((v / total_votes) * 100, 2)
+            for k, v in agenda_count.items()
+        }
+
+        st.subheader("Agenda Vote Percentage")
+        st.write(percent_data)
+
+        # Bar chart
+        import pandas as pd
+        df = pd.DataFrame(
+            percent_data.items(),
+            columns=["Agenda", "Percentage"]
+        ).set_index("Agenda")
+
+        st.bar_chart(df)
+
+    else:
+        st.info("No votes for current meeting.")
+
+else:
+    st.error("Meeting not configured.")
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
     st.title("👥 Team Dashboard")
