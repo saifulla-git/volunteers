@@ -408,22 +408,52 @@ elif menu == "Teams":
 
 # ---------------- MEETINGS ----------------
 elif menu == "Meetings":
+
     st.title("📅 Meeting Attendance")
 
-    with st.form("attendance_form"):
+    # ================= NAME AUTO FILL =================
+    if st.session_state.get("logged_in"):
+
+        auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
+
+        name = st.text_input(
+            "Your Name",
+            value=auto_name,
+            disabled=True
+        )
+
+    else:
         name = st.text_input("Your Name")
+
+    # ================= FORM =================
+    with st.form("attendance_form"):
+
         attending = st.radio("Will You Attend?", ["Yes", "No"])
         reason = st.text_area("Reason (if No)")
+
         submit = st.form_submit_button("Submit")
 
         if submit:
-            db.collection("meetings").add({
-                "name": name,
-                "attending": attending,
-                "reason": reason,
-                "role": st.session_state.role
-            })
-            st.success("Attendance Recorded")
+
+            if name.strip() == "":
+                st.warning("Name is required.")
+
+            elif attending == "No" and reason.strip() == "":
+                st.warning("Please provide a reason if not attending.")
+
+            else:
+
+                db.collection("meetings").add({
+                    "name": name.strip().lower(),
+                    "user_id": st.session_state.get("user_id", "public"),
+                    "attending": attending,
+                    "reason": reason.strip(),
+                    "role": st.session_state.get("role"),
+                    "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                })
+
+                st.success("Attendance Recorded")
+                st.rerun()
 
 # ---------------- PLAN NEXT MEETING ----------------
 elif menu == "Plan Next Meeting":
