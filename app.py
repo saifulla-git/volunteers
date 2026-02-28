@@ -264,4 +264,10 @@ if st.session_state.logged_in:
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M")
             })
             st.success("Notice Posted")
+            import bcrypt
+
+if st.button("Generate Fresh Hash"):
+    new_hash = bcrypt.hashpw("Admin123".encode(), bcrypt.gensalt()).decode()
+    st.write(new_hash)
+            
            
