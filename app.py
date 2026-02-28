@@ -218,54 +218,67 @@ elif menu == "Admin Panel":
         # ==============================
         # 2️⃣ MEETING CONTROL SECTION
         # ==============================
-        st.subheader("📅 Meeting Management")
+    st.subheader("📅 Meeting Management")
 
-        meeting_doc = db.collection("admin_settings") \
+meeting_doc = db.collection("admin_settings") \
+    .document("meeting_options") \
+    .get()
+
+meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+
+current_meeting_id = meeting_data.get("meeting_id", "Not Set")
+current_status = meeting_data.get("status", "Closed")
+
+st.info(f"Current Meeting ID: {current_meeting_id}")
+st.info(f"Status: {current_status}")
+
+st.divider()
+st.subheader("Create / Update Active Meeting")
+
+new_meeting_id = st.text_input("Meeting ID")
+agenda_input = st.text_area("Agenda Options (comma separated)")
+date_input = st.text_area("Date Options (comma separated)")
+time_input = st.text_area("Time Options (comma separated)")
+place_input = st.text_area("Place Options (comma separated)")
+
+# ---------------- SAVE MEETING ----------------
+if st.button("Save Meeting"):
+
+    if new_meeting_id.strip() == "":
+        st.error("Meeting ID is required.")
+    else:
+        db.collection("admin_settings") \
             .document("meeting_options") \
-            .get()
+            .set({
+                "meeting_id": new_meeting_id.strip(),
+                "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                "status": "Active"
+            })
 
-        meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+        st.success("Meeting saved and activated.")
+        st.rerun()
 
-        current_meeting_id = meeting_data.get("meeting_id", "Not Set")
-        current_status = meeting_data.get("status", "Closed")
+# ---------------- CLOSE MEETING ----------------
+if current_status == "Active":
 
-        st.info(f"Current Meeting ID: {current_meeting_id}")
-        st.info(f"Status: {current_status}")
+    if st.button("Close Current Meeting"):
 
-        st.divider()
-        st.subheader("Create / Update Active Meeting")
-
-        new_meeting_id = st.text_input("Meeting ID")
-        agenda_input = st.text_area("Agenda Options (comma separated)")
-        date_input = st.text_area("Date Options (comma separated)")
-        time_input = st.text_area("Time Options (comma separated)")
-        place_input = st.text_area("Place Options (comma separated)")
-
-        if st.button("Save Meeting"):
-
-            if new_meeting_id.strip() == "":
-                st.error("Meeting ID is required.")
-            else:
-                db.collection("admin_settings") \
-                    .document("meeting_options") \
-                    .set({
-                        "meeting_id": new_meeting_id.strip(),
-                        "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                        "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                        "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                        "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                        "status": "Active"
-                    })
-
-                st.success("Meeting saved and activated.")
-                st.rerun()
-      if current_status == "Active":
-          if st.button("Close Current Meeting"):meeting_id = current_meeting_id
+        meeting_id = current_meeting_id
 
         votes = db.collection("meeting_details") \
             .where("meeting_id", "==", meeting_id) \
             .stream()
 
+        # You can continue winner detection logic here
+        st.success("Meeting closed.")
+
+
+          
+
+        
     
 
         
