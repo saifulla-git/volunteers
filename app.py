@@ -218,12 +218,9 @@ elif menu == "Admin Panel":
         # ==============================
         # 2️⃣ MEETING CONTROL SECTION
         # ==============================
-    st.subheader("📅 Meeting Management")
+st.subheader("📅 Meeting Management")
 
-meeting_doc = db.collection("admin_settings") \
-    .document("meeting_options") \
-    .get()
-
+meeting_doc = db.collection("admin_settings").document("meeting_options").get()
 meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
 
 current_meeting_id = meeting_data.get("meeting_id", "Not Set")
@@ -241,25 +238,26 @@ date_input = st.text_area("Date Options (comma separated)")
 time_input = st.text_area("Time Options (comma separated)")
 place_input = st.text_area("Place Options (comma separated)")
 
+
 # ---------------- SAVE MEETING ----------------
 if st.button("Save Meeting"):
 
     if new_meeting_id.strip() == "":
         st.error("Meeting ID is required.")
     else:
-        db.collection("admin_settings") \
-            .document("meeting_options") \
-            .set({
-                "meeting_id": new_meeting_id.strip(),
-                "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                "status": "Active"
-            })
+
+        db.collection("admin_settings").document("meeting_options").set({
+            "meeting_id": new_meeting_id.strip(),
+            "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+            "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+            "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+            "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+            "status": "Active"
+        })
 
         st.success("Meeting saved and activated.")
         st.rerun()
+
 
 # ---------------- CLOSE MEETING ----------------
 if current_status == "Active":
@@ -272,12 +270,7 @@ if current_status == "Active":
             .where("meeting_id", "==", meeting_id) \
             .stream()
 
-        # You can continue winner detection logic here
         st.success("Meeting closed.")
-
-
-          
-
         
     
 
