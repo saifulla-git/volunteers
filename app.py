@@ -211,52 +211,62 @@ elif menu == "Logout":
     
 
 # ---------------- DASHBOARD ----------------
-st.title("📊 Dashboard")
+elif menu == "Dashboard":
 
-# Get current meeting_id
-doc = db.collection("admin_settings").document("meeting_options").get()
+    st.title("📊 Dashboard")
 
-if doc.exists:
-    meeting_id = doc.to_dict().get("meeting_id")
+    # Get current meeting settings
+    doc = db.collection("admin_settings").document("meeting_options").get()
 
-    votes = db.collection("meeting_details") \
-        .where("meeting_id", "==", meeting_id) \
-        .stream()
+    if doc.exists:
 
-    agenda_count = {}
-    total_votes = 0
+        meeting_id = doc.to_dict().get("meeting_id")
 
-    for vote in votes:
-        data = vote.to_dict()
-        total_votes += 1
-        agenda = data.get("agenda")
-        agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+        st.info(f"Current Meeting ID: {meeting_id}")
 
-    if total_votes > 0:
+        # Fetch votes for current meeting
+        votes = db.collection("meeting_details") \
+            .where("meeting_id", "==", meeting_id) \
+            .stream()
 
-        # Percentage calculation
-        percent_data = {
-            k: round((v / total_votes) * 100, 2)
-            for k, v in agenda_count.items()
-        }
+        agenda_count = {}
+        total_votes = 0
 
-        st.subheader("Agenda Vote Percentage")
-        st.write(percent_data)
+        for vote in votes:
+            data = vote.to_dict()
+            total_votes += 1
 
-        # Bar chart
-        import pandas as pd
-        df = pd.DataFrame(
-            percent_data.items(),
-            columns=["Agenda", "Percentage"]
-        ).set_index("Agenda")
+            agenda = data.get("agenda")
+            if agenda:
+                agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
 
-        st.bar_chart(df)
+        if total_votes > 0:
+
+            # Calculate percentage
+            percent_data = {}
+            for key, value in agenda_count.items():
+                percent = round((value / total_votes) * 100, 2)
+                percent_data[key] = percent
+
+            st.subheader("Agenda Vote Percentage")
+            st.write(percent_data)
+
+            # Create DataFrame for chart
+            import pandas as pd
+            df = pd.DataFrame(
+                percent_data.items(),
+                columns=["Agenda", "Percentage"]
+            ).set_index("Agenda")
+
+            st.bar_chart(df)
+
+        else:
+            st.info("No votes submitted for this meeting yet.")
 
     else:
-        st.info("No votes for current meeting.")
-
-    else:
-        st.error("Meeting not configured.")
+        st.error("Meeting settings not found.")
+       
+       
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
     st.title("👥 Team Dashboard")
