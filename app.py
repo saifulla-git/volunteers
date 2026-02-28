@@ -894,6 +894,7 @@ elif menu == "Plan Next Meeting":
     else:
         st.info("No votes submitted yet.")
         #---reports---#
+#------#-----#
 elif menu == "Reports":
 
     st.title("📊 Reports")
@@ -921,19 +922,34 @@ elif menu == "Reports":
             submit = st.form_submit_button("Submit")
 
         if submit:
-            if complaint_text.strip() == "":
+
+            clean_text = complaint_text.strip().lower()
+
+            if clean_text == "":
                 st.warning("Complaint cannot be empty.")
-            else:
-                db.collection("complaints").add({
-                    "complaint": complaint_text.strip(),
-                    "created_by": user_id,
-                    "created_name": user_name,
-                    "created_at": datetime.utcnow(),
-                    "likes": 0,
-                    "is_published": False
-                })
-                st.success("Complaint submitted.")
-                st.rerun()
+                st.stop()
+
+            # ✅ Prevent same complaint by same user
+            duplicate_check = db.collection("complaints") \
+                .where("created_by", "==", user_id) \
+                .where("complaint", "==", clean_text) \
+                .stream()
+
+            if list(duplicate_check):
+                st.error("You have already submitted this same complaint.")
+                st.stop()
+
+            db.collection("complaints").add({
+                "complaint": clean_text,
+                "created_by": user_id,
+                "created_name": user_name,
+                "created_at": datetime.utcnow(),
+                "likes": 0,
+                "is_published": False
+            })
+
+            st.success("Complaint submitted.")
+            st.rerun()
 
         st.divider()
         st.subheader("All Complaints")
@@ -960,18 +976,16 @@ elif menu == "Reports":
             is_published = comp.get("is_published", False)
             creator_name = comp.get("created_name")
 
-            # Highlight if published
             if is_published:
                 st.markdown("### ✅ Published Complaint")
 
             st.markdown(f"### 📝 {text}")
             st.markdown(f"👍 Likes: **{likes}**")
 
-            # Show complainer name ONLY if published
             if is_published:
                 st.caption(f"👤 Complainer: {creator_name}")
 
-            # ---------------- LIKE SYSTEM ----------------
+            # -------- LIKE --------
             if comp.get("created_by") != user_id:
 
                 existing_like = db.collection("complaints") \
@@ -1003,7 +1017,23 @@ elif menu == "Reports":
                 else:
                     st.success("You liked this.")
 
-            # ---------------- ADMIN PUBLISH ----------------
+            # -------- Likes Table --------
+            st.markdown("##### 👍 Liked By")
+
+            likes_docs = db.collection("complaints") \
+                .document(doc_id) \
+                .collection("likes") \
+                .stream()
+
+            like_data = [l.to_dict() for l in likes_docs]
+
+            if like_data:
+                df_likes = pd.DataFrame(like_data)
+                st.dataframe(df_likes[["name", "liked_at"]], use_container_width=True)
+            else:
+                st.info("No likes yet.")
+
+            # -------- ADMIN PUBLISH --------
             if role == "Admin":
 
                 if not is_published:
@@ -1011,24 +1041,18 @@ elif menu == "Reports":
 
                         db.collection("complaints") \
                             .document(doc_id) \
-                            .update({
-                                "is_published": True,
-                                "published_at": datetime.utcnow()
-                            })
+                            .update({"is_published": True})
 
-                        st.success("Complaint Published to Public.")
+                        st.success("Complaint Published.")
                         st.rerun()
-
                 else:
                     if st.button("❌ Unpublish", key=f"unpublish_{doc_id}"):
 
                         db.collection("complaints") \
                             .document(doc_id) \
-                            .update({
-                                "is_published": False
-                            })
+                            .update({"is_published": False})
 
-                        st.warning("Complaint Hidden from Public.")
+                        st.warning("Complaint Hidden.")
                         st.rerun()
 
             st.divider()
@@ -1046,18 +1070,33 @@ elif menu == "Reports":
             submit = st.form_submit_button("Submit")
 
         if submit:
-            if suggestion_text.strip() == "":
+
+            clean_text = suggestion_text.strip().lower()
+
+            if clean_text == "":
                 st.warning("Suggestion cannot be empty.")
-            else:
-                db.collection("suggestions").add({
-                    "suggestion": suggestion_text.strip(),
-                    "created_by": user_id,
-                    "created_name": user_name,
-                    "created_at": datetime.utcnow(),
-                    "likes": 0
-                })
-                st.success("Suggestion submitted.")
-                st.rerun()
+                st.stop()
+
+            # ✅ Prevent same suggestion by same user
+            duplicate_check = db.collection("suggestions") \
+                .where("created_by", "==", user_id) \
+                .where("suggestion", "==", clean_text) \
+                .stream()
+
+            if list(duplicate_check):
+                st.error("You have already submitted this same suggestion.")
+                st.stop()
+
+            db.collection("suggestions").add({
+                "suggestion": clean_text,
+                "created_by": user_id,
+                "created_name": user_name,
+                "created_at": datetime.utcnow(),
+                "likes": 0
+            })
+
+            st.success("Suggestion submitted.")
+            st.rerun()
 
         st.divider()
         st.subheader("All Suggestions")
@@ -1117,5 +1156,21 @@ elif menu == "Reports":
                         st.rerun()
                 else:
                     st.success("You liked this.")
+
+            # -------- Likes Table --------
+            st.markdown("##### 👍 Liked By")
+
+            likes_docs = db.collection("suggestions") \
+                .document(doc_id) \
+                .collection("likes") \
+                .stream()
+
+            like_data = [l.to_dict() for l in likes_docs]
+
+            if like_data:
+                df_likes = pd.DataFrame(like_data)
+                st.dataframe(df_likes[["name", "liked_at"]], use_container_width=True)
+            else:
+                st.info("No likes yet.")
 
             st.divider()
