@@ -378,34 +378,68 @@ elif menu == "Dashboard":
        
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
+
     st.title("👥 Team Dashboard")
 
-    selected_team = st.selectbox("Select Team", [
-        "Jury Team", "Task Team", "Monitoring Team", "Data Team"
-    ])
+    selected_team = st.selectbox(
+        "Select Team",
+        ["Jury Team", "Task Team", "Monitoring Team", "Data Team"]
+    )
 
-    with st.form("team_form"):
+    # ================= AUTO NAME =================
+    if st.session_state.get("logged_in"):
+
+        auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
+
+        name = st.text_input(
+            "Member Name",
+            value=auto_name,
+            disabled=True
+        )
+
+    else:
         name = st.text_input("Member Name")
+
+    # ================= FORM =================
+    with st.form("team_form"):
+
         details = st.text_area("Details / Work Description")
+
         submit = st.form_submit_button("Save")
 
         if submit:
-            db.collection("teams").add({
-                "team": selected_team,
-                "name": name,
-                "details": details,
-                "created_by": st.session_state.role
-            })
-            st.success("Saved Successfully")
 
+            if name.strip() == "":
+                st.warning("Member name is required.")
+
+            elif details.strip() == "":
+                st.warning("Details are required.")
+
+            else:
+
+                db.collection("teams").add({
+                    "team": selected_team,
+                    "name": name.strip().lower(),
+                    "user_id": st.session_state.get("user_id", "public"),
+                    "details": details.strip(),
+                    "created_by_role": st.session_state.get("role"),
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                })
+
+                st.success("Saved Successfully")
+                st.rerun()
+
+    # ================= RECORDS =================
     st.divider()
     st.subheader("Team Records")
 
-    records = db.collection("teams").where("team", "==", selected_team).stream()
+    records = db.collection("teams").where(
+        "team", "==", selected_team
+    ).stream()
+
     for r in records:
         data = r.to_dict()
         st.write(f"👤 {data.get('name')} — {data.get('details')}")
-
 # ---------------- MEETINGS ----------------
 elif menu == "Meetings":
 
