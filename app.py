@@ -398,8 +398,8 @@ elif menu == "Plan Next Meeting":
         else:
             st.info("No votes submitted yet.")
 
-    else:
-        st.error("Meeting options not found.")
+        else:
+            st.error("Meeting options not found.")
            
               
       
