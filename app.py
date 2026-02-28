@@ -3,6 +3,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import pandas as pd
 from datetime import datetime
+import bcrypt
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Volunteer Portal", layout="wide")
@@ -15,7 +16,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- FIREBASE INIT (STREAMLIT SECRETS) ----------------
+# ---------------- FIREBASE INIT ----------------
 if not firebase_admin._apps:
     cred = credentials.Certificate({
         "type": st.secrets["firebase"]["type"],
@@ -34,11 +35,29 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+# ---------------- AUTH FUNCTIONS ----------------
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+def get_user_by_mobile(mobile):
+    users = db.collection("users").where("mobile", "==", mobile).stream()
+    for user in users:
+        data = user.to_dict()
+        data["id"] = user.id
+        return data
+    return None
+
 # ---------------- SESSION ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
     st.session_state.role = None
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.title("🤝 Volunteer Portal")
@@ -72,20 +91,22 @@ if menu == "Public Notice Board":
 elif menu == "Login":
     st.title("🔐 Login")
 
-    user = st.text_input("Username")
+    mobile = st.text_input("Mobile Number")
     password = st.text_input("Password", type="password")
-    role = st.selectbox("Select Role", [
-        "Admin",
-        "Jury Team",
-        "Task Team",
-        "Monitoring Team",
-        "Data Team"
-    ])
 
     if st.button("Login"):
-        if password == "1234":
+        user = get_user_by_mobile(mobile)
+
+        if not user:
+            st.error("User not found")
+        elif not user.get("is_approved", False):
+            st.warning("Account not approved by admin yet.")
+        elif user.get("is_blocked", False):
+            st.error("Your account is blocked.")
+        elif check_password(password, user["password_hash"]):
             st.session_state.logged_in = True
-            st.session_state.role = role
+            st.session_state.role = user["role"]
+            st.session_state.user_id = user["id"]
             st.success("Login Successful")
             st.rerun()
         else:
@@ -95,6 +116,7 @@ elif menu == "Login":
 elif menu == "Logout":
     st.session_state.logged_in = False
     st.session_state.role = None
+    st.session_state.user_id = None
     st.rerun()
 
 # ---------------- DASHBOARD ----------------
@@ -110,8 +132,6 @@ elif menu == "Dashboard":
     with col2:
         total_meetings = len(list(db.collection("meetings").stream()))
         st.metric("Total Meetings Recorded", total_meetings)
-
-    st.info("You can view all team dashboards.")
 
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
