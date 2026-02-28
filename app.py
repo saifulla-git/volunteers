@@ -153,15 +153,25 @@ elif menu == "Admin Panel":
     if st.session_state.role != "Admin":
         st.error("Access Denied")
     else:
-        st.title("👑 Admin Approval Panel")
+        st.title("👑 Admin Control Panel")
 
-        requests = db.collection("registration_requests").where("status", "==", "pending").stream()
+        # ==============================
+        # 1️⃣ USER APPROVAL SECTION
+        # ==============================
+        st.subheader("Pending Registration Requests")
+
+        requests = db.collection("registration_requests") \
+            .where("status", "==", "pending") \
+            .stream()
+
+        found_request = False
 
         for req in requests:
+            found_request = True
             data = req.to_dict()
             doc_id = req.id
 
-            st.subheader(data.get("name"))
+            st.write("Name:", data.get("name"))
             st.write("Father Name:", data.get("father_name"))
             st.write("Mobile:", data.get("mobile"))
 
@@ -170,7 +180,6 @@ elif menu == "Admin Panel":
             with col1:
                 if st.button(f"Approve {doc_id}"):
 
-                    # Generate password
                     raw_password = data.get("mobile")[-4:]
                     hashed = hash_password(raw_password)
 
@@ -184,9 +193,9 @@ elif menu == "Admin Panel":
                         "is_blocked": False
                     })
 
-                    db.collection("registration_requests").document(doc_id).update({
-                        "status": "approved"
-                    })
+                    db.collection("registration_requests") \
+                        .document(doc_id) \
+                        .update({"status": "approved"})
 
                     st.success(f"Approved. Password is last 4 digits: {raw_password}")
                     st.rerun()
@@ -194,22 +203,71 @@ elif menu == "Admin Panel":
             with col2:
                 if st.button(f"Reject {doc_id}"):
 
-                    db.collection("registration_requests").document(doc_id).update({
-                        "status": "rejected"
-                    })
+                    db.collection("registration_requests") \
+                        .document(doc_id) \
+                        .update({"status": "rejected"})
 
                     st.warning("Request Rejected")
                     st.rerun()
 
             st.divider()
-# ---------------- LOGOUT ----------------
-elif menu == "Logout":
-    st.session_state.logged_in = False
-    st.session_state.role = None
-    st.session_state.user_id = None
-    st.rerun()
-    
 
+        if not found_request:
+            st.info("No pending registration requests.")
+
+        # ==============================
+        # 2️⃣ MEETING CONTROL SECTION
+        # ==============================
+        st.subheader("📅 Meeting Management")
+
+        meeting_doc = db.collection("admin_settings") \
+            .document("meeting_options") \
+            .get()
+
+        meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+
+        current_meeting_id = meeting_data.get("meeting_id", "Not Set")
+        current_status = meeting_data.get("status", "Closed")
+
+        st.info(f"Current Meeting ID: {current_meeting_id}")
+        st.info(f"Status: {current_status}")
+
+        st.divider()
+        st.subheader("Create / Update Active Meeting")
+
+        new_meeting_id = st.text_input("Meeting ID")
+        agenda_input = st.text_area("Agenda Options (comma separated)")
+        date_input = st.text_area("Date Options (comma separated)")
+        time_input = st.text_area("Time Options (comma separated)")
+        place_input = st.text_area("Place Options (comma separated)")
+
+        if st.button("Save Meeting"):
+
+            if new_meeting_id.strip() == "":
+                st.error("Meeting ID is required.")
+            else:
+                db.collection("admin_settings") \
+                    .document("meeting_options") \
+                    .set({
+                        "meeting_id": new_meeting_id.strip(),
+                        "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                        "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                        "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                        "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                        "status": "Active"
+                    })
+
+                st.success("Meeting saved and activated.")
+                st.rerun()
+
+        if current_status == "Active":
+            if st.button("Close Current Meeting"):
+                db.collection("admin_settings") \
+                    .document("meeting_options") \
+                    .update({"status": "Closed"})
+
+                st.warning("Meeting Closed.")
+                st.rerun()
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
