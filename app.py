@@ -152,168 +152,107 @@ elif menu == "Admin Panel":
 
     if st.session_state.role != "Admin":
         st.error("Access Denied")
+
     else:
-        st.title("👑 Admin Control Panel")
 
-        # ==============================
-        # 1️⃣ USER APPROVAL SECTION
-        # ==============================
-        st.subheader("Pending Registration Requests")
+        st.title("👑 Admin Panel")
 
-        requests = db.collection("registration_requests") \
-            .where("status", "==", "pending") \
-            .stream()
+        # ================= MEETING MANAGEMENT =================
+        st.subheader("📅 Meeting Management")
 
-        found_request = False
+        meeting_doc = db.collection("admin_settings").document("meeting_options").get()
+        meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
 
-        for req in requests:
-            found_request = True
-            data = req.to_dict()
-            doc_id = req.id
+        current_meeting_id = meeting_data.get("meeting_id", "Not Set")
+        current_status = meeting_data.get("status", "Closed")
 
-            st.write("Name:", data.get("name"))
-            st.write("Father Name:", data.get("father_name"))
-            st.write("Mobile:", data.get("mobile"))
+        st.info(f"Current Meeting ID: {current_meeting_id}")
+        st.info(f"Status: {current_status}")
 
-            col1, col2 = st.columns(2)
+        st.divider()
+        st.subheader("Create / Update Active Meeting")
 
-            with col1:
-                if st.button(f"Approve {doc_id}"):
+        new_meeting_id = st.text_input("Meeting ID")
+        agenda_input = st.text_area("Agenda Options (comma separated)")
+        date_input = st.text_area("Date Options (comma separated)")
+        time_input = st.text_area("Time Options (comma separated)")
+        place_input = st.text_area("Place Options (comma separated)")
 
-                    raw_password = data.get("mobile")[-4:]
-                    hashed = hash_password(raw_password)
+        # ---------------- SAVE MEETING ----------------
+        if st.button("Save Meeting"):
 
-                    db.collection("users").add({
-                        "name": data.get("name"),
-                        "father_name": data.get("father_name"),
-                        "mobile": data.get("mobile"),
-                        "password_hash": hashed,
-                        "role": "Member",
-                        "is_approved": True,
-                        "is_blocked": False
+            if new_meeting_id.strip() == "":
+                st.error("Meeting ID is required.")
+            else:
+
+                db.collection("admin_settings").document("meeting_options").set({
+                    "meeting_id": new_meeting_id.strip(),
+                    "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                    "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                    "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                    "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                    "status": "Active"
+                })
+
+                st.success("Meeting saved and activated.")
+                st.rerun()
+
+        # ---------------- CLOSE MEETING ----------------
+        if current_status == "Active":
+
+            if st.button("Close Current Meeting"):
+
+                meeting_id = current_meeting_id
+
+                votes = db.collection("meeting_details").where(
+                    "meeting_id", "==", meeting_id
+                ).stream()
+
+                agenda_count = {}
+                date_count = {}
+                time_count = {}
+                place_count = {}
+                total_votes = 0
+
+                for vote in votes:
+                    data = vote.to_dict()
+                    total_votes += 1
+
+                    agenda = data.get("agenda")
+                    date = data.get("date")
+                    time = data.get("time")
+                    place = data.get("place")
+
+                    agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+                    date_count[date] = date_count.get(date, 0) + 1
+                    time_count[time] = time_count.get(time, 0) + 1
+                    place_count[place] = place_count.get(place, 0) + 1
+
+                if total_votes == 0:
+                    st.error("No votes to finalize.")
+                else:
+
+                    winning_agenda = max(agenda_count, key=agenda_count.get)
+                    winning_date = max(date_count, key=date_count.get)
+                    winning_time = max(time_count, key=time_count.get)
+                    winning_place = max(place_count, key=place_count.get)
+
+                    db.collection("meeting_results").document(meeting_id).set({
+                        "meeting_id": meeting_id,
+                        "total_votes": total_votes,
+                        "winning_agenda": winning_agenda,
+                        "winning_date": winning_date,
+                        "winning_time": winning_time,
+                        "winning_place": winning_place,
+                        "finalized_at": datetime.now().strftime("%Y-%m-%d %H:%M")
                     })
 
-                    db.collection("registration_requests") \
-                        .document(doc_id) \
-                        .update({"status": "approved"})
+                    db.collection("admin_settings").document("meeting_options").update({
+                        "status": "Closed"
+                    })
 
-                    st.success(f"Approved. Password is last 4 digits: {raw_password}")
+                    st.success("Meeting finalized and closed.")
                     st.rerun()
-
-            with col2:
-                if st.button(f"Reject {doc_id}"):
-
-                    db.collection("registration_requests") \
-                        .document(doc_id) \
-                        .update({"status": "rejected"})
-
-                    st.warning("Request Rejected")
-                    st.rerun()
-
-            st.divider()
-
-        if not found_request:
-            st.info("No pending registration requests.")
-
-        # ==============================
-        # 2️⃣ MEETING CONTROL SECTION
-        # ==============================
-st.subheader("📅 Meeting Management")
-
-meeting_doc = db.collection("admin_settings").document("meeting_options").get()
-meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
-
-current_meeting_id = meeting_data.get("meeting_id", "Not Set")
-current_status = meeting_data.get("status", "Closed")
-
-st.info(f"Current Meeting ID: {current_meeting_id}")
-st.info(f"Status: {current_status}")
-
-st.divider()
-st.subheader("Create / Update Active Meeting")
-
-new_meeting_id = st.text_input("Meeting ID")
-agenda_input = st.text_area("Agenda Options (comma separated)")
-date_input = st.text_area("Date Options (comma separated)")
-time_input = st.text_area("Time Options (comma separated)")
-place_input = st.text_area("Place Options (comma separated)")
-
-
-# ---------------- SAVE MEETING ----------------
-if st.button("Save Meeting"):
-
-    if new_meeting_id.strip() == "":
-        st.error("Meeting ID is required.")
-    else:
-
-        db.collection("admin_settings").document("meeting_options").set({
-            "meeting_id": new_meeting_id.strip(),
-            "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-            "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-            "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-            "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-            "status": "Active"
-        })
-
-        st.success("Meeting saved and activated.")
-        st.rerun()
-
-
-# ---------------- CLOSE MEETING ----------------
-if current_status == "Active":
-
-    if st.button("Close Current Meeting"):
-
-        meeting_id = current_meeting_id
-
-        votes = db.collection("meeting_details").where(
-            "meeting_id", "==", meeting_id
-        ).stream()
-
-        agenda_count = {}
-        date_count = {}
-        time_count = {}
-        place_count = {}
-        total_votes = 0
-
-        for vote in votes:
-            data = vote.to_dict()
-            total_votes += 1
-
-            agenda = data.get("agenda")
-            date = data.get("date")
-            time = data.get("time")
-            place = data.get("place")
-
-            agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
-            date_count[date] = date_count.get(date, 0) + 1
-            time_count[time] = time_count.get(time, 0) + 1
-            place_count[place] = place_count.get(place, 0) + 1
-
-        if total_votes == 0:
-            st.error("No votes to finalize.")
-        else:
-            winning_agenda = max(agenda_count, key=agenda_count.get)
-            winning_date = max(date_count, key=date_count.get)
-            winning_time = max(time_count, key=time_count.get)
-            winning_place = max(place_count, key=place_count.get)
-
-            db.collection("meeting_results").document(meeting_id).set({
-                "meeting_id": meeting_id,
-                "total_votes": total_votes,
-                "winning_agenda": winning_agenda,
-                "winning_date": winning_date,
-                "winning_time": winning_time,
-                "winning_place": winning_place,
-                "finalized_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-            })
-
-            db.collection("admin_settings").document("meeting_options").update({
-                "status": "Closed"
-            })
-
-            st.success("Meeting finalized and closed.")
-            st.rerun()
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
