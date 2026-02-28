@@ -312,8 +312,7 @@ elif menu == "Plan Next Meeting":
 
     else:
         st.error("Meeting options not found.")
-
-   st.divider()
+    st.divider()
 st.subheader("📊 Live Voting Results")
 
 votes = db.collection("meeting_details").stream()
@@ -348,6 +347,10 @@ st.write(time_count)
 
 st.write("### Place Votes")
 st.write(place_count)
+
+   
+
+    
 
 
 
