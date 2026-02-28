@@ -84,21 +84,20 @@ else:
     ])
 
 # ---------------- PUBLIC NOTICE BOARD ----------------
-elif menu == "Public Notice Board":
+# ---------------- PUBLIC NOTICE BOARD ----------------
+if menu == "Public Notice Board":
 
     st.title("📢 Public Notice Board")
 
     notices = db.collection("notices").stream()
-
     notice_list = []
 
-    # Collect notices first
     for notice_doc in notices:
         data = notice_doc.to_dict()
         data["doc_id"] = notice_doc.id
         notice_list.append(data)
 
-    # Sort manually (Pinned first, newest first)
+    # Pinned first, latest first
     notice_list = sorted(
         notice_list,
         key=lambda x: (
@@ -127,14 +126,14 @@ elif menu == "Public Notice Board":
 
             # ADMIN DELETE
             if st.session_state.get("role") == "Admin":
-                if st.button(f"Delete {notice_id}"):
+                if st.button(f"Delete_{notice_id}"):
                     db.collection("notices").document(notice_id).delete()
                     st.success("Notice deleted.")
                     st.rerun()
 
             st.divider()
 
-            # COMMENTS
+            # ---------------- COMMENTS ----------------
             st.subheader("💬 Comments")
 
             comments = db.collection("notices") \
@@ -151,31 +150,25 @@ elif menu == "Public Notice Board":
 
             # ADD COMMENT
             if st.session_state.get("logged_in"):
-                auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
-            else:
-                auto_name = st.text_input(f"Your Name {notice_id}")
 
-            comment_text = st.text_input(f"Write Comment {notice_id}")
+                auto_name = f"{st.session_state.get('name', '')} / {st.session_state.get('father_name', '')}"
+                comment_text = st.text_input(f"Add Comment {notice_id}")
 
-            if st.button(f"Post Comment {notice_id}"):
+                if st.button(f"Comment_{notice_id}"):
+                    if comment_text.strip() != "":
+                        db.collection("notices") \
+                            .document(notice_id) \
+                            .collection("comments") \
+                            .add({
+                                "name_father": auto_name,
+                                "comment": comment_text.strip(),
+                                "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                            })
 
-                if comment_text.strip() == "":
-                    st.warning("Comment cannot be empty.")
-                else:
-                    db.collection("notices") \
-                        .document(notice_id) \
-                        .collection("comments") \
-                        .add({
-                            "comment": comment_text.strip(),
-                            "name_father": auto_name,
-                            "user_id": st.session_state.get("user_id", "public"),
-                            "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        })
+                        st.success("Comment added.")
+                        st.rerun()
 
-                    st.success("Comment posted.")
-                    st.rerun()
-
-            st.markdown("---")
+            st.divider()
 # ---------------- LOGIN ----------------
 elif menu == "Login":
 
