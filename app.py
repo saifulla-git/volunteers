@@ -255,8 +255,8 @@ if doc.exists:
     else:
         st.info("No votes for current meeting.")
 
-else:
-    st.error("Meeting not configured.")
+    else:
+        st.error("Meeting not configured.")
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
     st.title("👥 Team Dashboard")
