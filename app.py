@@ -432,172 +432,137 @@ elif menu == "Plan Next Meeting":
 
     doc = db.collection("admin_settings").document("meeting_options").get()
 
-    if doc.exists:
-        data = doc.to_dict()
-
-        meeting_id = data.get("meeting_id")
-
-        agenda_options = data.get("agenda_options", [])
-        date_options = data.get("date_options", [])
-        time_options = data.get("time_options", [])
-        place_options = data.get("place_options", [])
-
-        # Show current meeting ID
-        st.info(f"Current Meeting ID: {meeting_id}")
-
-        # ---------------- FORM ----------------
-        with st.form("meeting_vote_form"):
-
-            name_father = st.text_input("Your Name & Father Name")
-
-            selected_agenda = st.selectbox("Select Agenda", agenda_options)
-            selected_date = st.selectbox("Select Date", date_options)
-            selected_time = st.selectbox("Select Time", time_options)
-            selected_place = st.selectbox("Select Place", place_options)
-
-            submit_vote = st.form_submit_button("Submit Vote")
-
-            if submit_vote:
-
-                if name_father.strip() == "":
-                    st.warning("Please enter your name.")
-
-                else:
-                    clean_name = name_father.strip().lower()
-
-                    # Check if already voted in this meeting
-                    existing_vote = db.collection("meeting_details") \
-                        .where("meeting_id", "==", meeting_id) \
-                        .where("name_father", "==", clean_name) \
-                        .stream()
-
-                    if list(existing_vote):
-                        st.error("You have already voted for this meeting.")
-
-                    else:
-                        db.collection("meeting_details").add({
-                            "meeting_id": meeting_id,
-                            "name_father": clean_name,
-                            "agenda": selected_agenda,
-                            "date": selected_date,
-                            "time": selected_time,
-                            "place": selected_place,
-                            "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        })
-
-                        st.success("Vote submitted successfully!")
-                        st.rerun()
-
-    else:
+    if not doc.exists:
         st.error("Meeting options not found.")
-                     
-        # ---------------- RESULTS ----------------
-        st.divider()
-        st.subheader("📊 Live Voting Results")
+        st.stop()
 
-        votes = db.collection("meeting_details").where("meeting_id", "==", meeting_id).stream()
+    data = doc.to_dict()
 
-        agenda_count = {}
-        date_count = {}
-        time_count = {}
-        place_count = {}
+    meeting_id = data.get("meeting_id")
+    agenda_options = data.get("agenda_options", [])
+    date_options = data.get("date_options", [])
+    time_options = data.get("time_options", [])
+    place_options = data.get("place_options", [])
 
-        vote_list = []
-        total_votes = 0
+    st.info(f"Current Meeting ID: {meeting_id}")
 
-        for vote in votes:
-            vote_data = vote.to_dict()
-            total_votes += 1
+    # ================= NAME AUTO FILL LOGIC =================
+    if st.session_state.get("logged_in"):
 
-            agenda = vote_data.get("agenda")
-            date = vote_data.get("date")
-            time = vote_data.get("time")
-            place = vote_data.get("place")
+        auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
 
-            agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
-            date_count[date] = date_count.get(date, 0) + 1
-            time_count[time] = time_count.get(time, 0) + 1
-            place_count[place] = place_count.get(place, 0) + 1
+        name_father = st.text_input(
+            "Your Name & Father Name",
+            value=auto_name,
+            disabled=True
+        )
 
-            vote_list.append(vote_data)
+        clean_name = auto_name.lower()
 
-        if total_votes > 0:
-
-            def calculate_percent(count_dict):
-                return {k: round((v / total_votes) * 100, 2) for k, v in count_dict.items()}
-
-            st.write("### Agenda (%)")
-            st.write(calculate_percent(agenda_count))
-
-            st.write("### Date (%)")
-            st.write(calculate_percent(date_count))
-
-            st.write("### Time (%)")
-            st.write(calculate_percent(time_count))
-
-            st.write("### Place (%)")
-            st.write(calculate_percent(place_count))
-
-            # ---------------- TABLE ----------------
-            st.divider()
-            st.subheader("📋 Submitted Votes")
-
-            import pandas as pd
-            df = pd.DataFrame(vote_list)
-
-            st.dataframe(df)
-
-        else:
-            st.info("No votes submitted yet.")
-
-        
-              
-      
-
-        
-  
-
-
-# ---------------- PLANNING ----------------
-elif menu == "Planning":
-    st.title("📈 Planning Progress")
-
-    plan = st.text_area("Plan Description")
-    progress = st.slider("Completion %", 0, 100, 40)
-
-    st.progress(progress)
-
-    if st.button("Save Planning"):
-        db.collection("planning").add({
-            "plan": plan,
-            "progress": progress,
-            "role": st.session_state.role
-        })
-        st.success("Planning Saved")
-
-# ---------------- REPORTS ----------------
-elif menu == "Reports":
-    st.title("📊 Reports Overview")
-
-    records = db.collection("teams").stream()
-    data = [doc.to_dict() for doc in records]
-
-    if len(data) > 0:
-        df = pd.DataFrame(data)
-        st.dataframe(df)
-        st.bar_chart(df["team"].value_counts())
     else:
-        st.info("No Data Available")
 
-# ---------------- POST NOTICE ----------------
-if st.session_state.logged_in:
-    with st.sidebar.expander("📢 Post Notice"):
-        notice_text = st.text_area("Write Notice")
-        if st.button("Post Notice"):
-            db.collection("notices").add({
-                "notice": notice_text,
-                "posted_by": st.session_state.role,
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M")
-            })
-            st.success("Notice Posted")
+        name_father = st.text_input("Your Name & Father Name")
+        clean_name = name_father.strip().lower()
+
+    # ================= VOTING FORM =================
+    with st.form("meeting_vote_form"):
+
+        selected_agenda = st.selectbox("Select Agenda", agenda_options)
+        selected_date = st.selectbox("Select Date", date_options)
+        selected_time = st.selectbox("Select Time", time_options)
+        selected_place = st.selectbox("Select Place", place_options)
+
+        submit_vote = st.form_submit_button("Submit Vote")
+
+        if submit_vote:
+
+            if clean_name == "":
+                st.warning("Please enter your name.")
+            else:
+
+                # Duplicate vote check
+                existing_vote = db.collection("meeting_details") \
+                    .where("meeting_id", "==", meeting_id) \
+                    .where("name_father", "==", clean_name) \
+                    .stream()
+
+                if list(existing_vote):
+                    st.error("You have already voted for this meeting.")
+                else:
+
+                    db.collection("meeting_details").add({
+                        "meeting_id": meeting_id,
+                        "name_father": clean_name,
+                        "user_id": st.session_state.get("user_id", "public"),
+                        "agenda": selected_agenda,
+                        "date": selected_date,
+                        "time": selected_time,
+                        "place": selected_place,
+                        "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    })
+
+                    st.success("Vote submitted successfully!")
+                    st.rerun()
+
+    # ================= LIVE RESULTS =================
+    st.divider()
+    st.subheader("📊 Live Voting Results")
+
+    votes = db.collection("meeting_details") \
+        .where("meeting_id", "==", meeting_id) \
+        .stream()
+
+    agenda_count = {}
+    date_count = {}
+    time_count = {}
+    place_count = {}
+    vote_list = []
+    total_votes = 0
+
+    for vote in votes:
+        vote_data = vote.to_dict()
+        total_votes += 1
+
+        agenda = vote_data.get("agenda")
+        date = vote_data.get("date")
+        time = vote_data.get("time")
+        place = vote_data.get("place")
+
+        agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+        date_count[date] = date_count.get(date, 0) + 1
+        time_count[time] = time_count.get(time, 0) + 1
+        place_count[place] = place_count.get(place, 0) + 1
+
+        vote_list.append(vote_data)
+
+    if total_votes > 0:
+
+        def calculate_percent(count_dict):
+            return {
+                k: round((v / total_votes) * 100, 2)
+                for k, v in count_dict.items()
+            }
+
+        st.write("### Agenda (%)")
+        st.write(calculate_percent(agenda_count))
+
+        st.write("### Date (%)")
+        st.write(calculate_percent(date_count))
+
+        st.write("### Time (%)")
+        st.write(calculate_percent(time_count))
+
+        st.write("### Place (%)")
+        st.write(calculate_percent(place_count))
+
+        # -------- TABLE --------
+        st.divider()
+        st.subheader("📋 Submitted Votes")
+
+        import pandas as pd
+        df = pd.DataFrame(vote_list)
+        st.dataframe(df, use_container_width=True)
+
+    else:
+        st.info("No votes submitted yet.")
             
