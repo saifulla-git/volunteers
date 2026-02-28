@@ -274,7 +274,7 @@ elif menu == "Meetings":
             st.success("Attendance Recorded")
 
 # ---------------- PLAN NEXT MEETING ----------------
-elif menu == "Plan Next Meeting":
+ elif menu == "Plan Next Meeting":
 
     st.title("📅 Plan Next Meeting")
 
@@ -290,6 +290,9 @@ elif menu == "Plan Next Meeting":
         time_options = data.get("time_options", [])
         place_options = data.get("place_options", [])
 
+        # Show current meeting ID
+        st.info(f"Current Meeting ID: {meeting_id}")
+
         # ---------------- FORM ----------------
         with st.form("meeting_vote_form"):
 
@@ -303,21 +306,40 @@ elif menu == "Plan Next Meeting":
             submit_vote = st.form_submit_button("Submit Vote")
 
             if submit_vote:
+
                 if name_father.strip() == "":
                     st.warning("Please enter your name.")
+
                 else:
-                    db.collection("meeting_details").add({
-                        "meeting_id": meeting_id,
-                        "name_father": name_father,
-                        "agenda": selected_agenda,
-                        "date": selected_date,
-                        "time": selected_time,
-                        "place": selected_place,
-                        "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    })
+                    clean_name = name_father.strip().lower()
 
-                    st.success("Vote submitted successfully!")
+                    # Check if already voted in this meeting
+                    existing_vote = db.collection("meeting_details") \
+                        .where("meeting_id", "==", meeting_id) \
+                        .where("name_father", "==", clean_name) \
+                        .stream()
 
+                    if list(existing_vote):
+                        st.error("You have already voted for this meeting.")
+
+                    else:
+                        db.collection("meeting_details").add({
+                            "meeting_id": meeting_id,
+                            "name_father": clean_name,
+                            "agenda": selected_agenda,
+                            "date": selected_date,
+                            "time": selected_time,
+                            "place": selected_place,
+                            "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        })
+
+                        st.success("Vote submitted successfully!")
+                        st.rerun()
+
+    else:
+        st.error("Meeting options not found.")
+            
+                     
         # ---------------- RESULTS ----------------
         st.divider()
         st.subheader("📊 Live Voting Results")
