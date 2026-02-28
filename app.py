@@ -288,7 +288,7 @@ elif menu == "Plan Next Meeting":
         date_options = data.get("date_options", [])
         time_options = data.get("time_options", [])
         place_options = data.get("place_options", [])
-        name_father = data.get("name")
+        name_father = data.get("name", [])
 
         with st.form("meeting_vote_form"):
 
