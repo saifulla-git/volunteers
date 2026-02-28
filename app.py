@@ -275,43 +275,43 @@ elif menu == "Meetings":
 
 # ---------------- PLAN NEXT MEETING ----------------
 elif menu == "Plan Next Meeting":
-    st.title("🗓 Plan Next Meeting")
 
-    with st.form("next_meeting_form"):
-        organizer = st.text_input("Organizer Name")
-        date = st.date_input("Meeting Date")
-        day = st.selectbox("Day", [
-            "Monday","Tuesday","Wednesday","Thursday",
-            "Friday","Saturday","Sunday"
-        ])
-        time = st.time_input("Meeting Time")
-        agenda = st.text_area("Meeting Agenda")
+    st.title("📅 Plan Next Meeting")
 
-        submit = st.form_submit_button("Save Meeting")
+    # Get options from admin_settings
+    doc = db.collection("admin_settings").document("meeting_options").get()
 
-        if submit:
-            db.collection("next_meeting").add({
-                "organizer": organizer,
-                "date": str(date),
-                "day": day,
-                "time": str(time),
-                "agenda": agenda,
-                "created_by": st.session_state.role,
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-            })
-            st.success("Next Meeting Scheduled")
+    if doc.exists:
+        data = doc.to_dict()
 
-    st.divider()
-    st.subheader("Upcoming Meetings")
+        agenda_options = data.get("agenda_options", [])
+        date_options = data.get("date_options", [])
+        time_options = data.get("time_options", [])
+        place_options = data.get("place_options", [])
 
-    meetings = db.collection("next_meeting").order_by("created_at").stream()
-    for m in meetings:
-        data = m.to_dict()
-        st.markdown(f"### 📍 {data.get('agenda')}")
-        st.write(f"👤 Organizer: {data.get('organizer')}")
-        st.write(f"📅 {data.get('date')} ({data.get('day')})")
-        st.write(f"⏰ {data.get('time')}")
-        st.divider()
+        with st.form("meeting_vote_form"):
+
+            selected_agenda = st.selectbox("Select Agenda", agenda_options)
+            selected_date = st.selectbox("Select Date", date_options)
+            selected_time = st.selectbox("Select Time", time_options)
+            selected_place = st.selectbox("Select Place", place_options)
+
+            submit_vote = st.form_submit_button("Submit Vote")
+
+            if submit_vote:
+                db.collection("meeting_details").add({
+                    "agenda": selected_agenda,
+                    "date": selected_date,
+                    "time": selected_time,
+                    "place": selected_place,
+                    "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                })
+
+                st.success("Vote submitted successfully!")
+
+    else:
+        st.error("Meeting options not found.")
+               
 
 # ---------------- PLANNING ----------------
 elif menu == "Planning":
