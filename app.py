@@ -84,16 +84,93 @@ else:
     ])
 
 # ---------------- PUBLIC NOTICE BOARD ----------------
-if menu == "Public Notice Board":
+elif menu == "Public Notice Board":
+
     st.title("📢 Public Notice Board")
 
-    notices = db.collection("notices").order_by("time").stream()
+    notices = db.collection("notices") \
+        .order_by("is_pinned", direction=firestore.Query.DESCENDING) \
+        .order_by("posted_at", direction=firestore.Query.DESCENDING) \
+        .stream()
+
+    found = False
+
     for n in notices:
+        found = True
         data = n.to_dict()
-        st.markdown(f"### 🗞 {data.get('notice')}")
-        st.caption(f"Posted by: {data.get('posted_by')} | {data.get('time')}")
+
+        notice_id = n.id
+        notice_text = data.get("notice", "")
+        name_father = data.get("name_father", "Unknown")
+        posted_at = data.get("posted_at", "")
+        is_pinned = data.get("is_pinned", False)
+
+        if is_pinned:
+            st.markdown("## 📌 Pinned Notice")
+
+        st.markdown(f"### 🗞 {notice_text}")
+        st.caption(f"Posted by: {name_father} | {posted_at}")
+
+        # ---------------- ADMIN DELETE ----------------
+        if st.session_state.get("role") == "Admin":
+            if st.button(f"🗑 Delete {notice_id}"):
+                db.collection("notices").document(notice_id).delete()
+                st.success("Notice deleted.")
+                st.rerun()
+
         st.divider()
 
+        # ================= COMMENTS SECTION =================
+        st.subheader("💬 Comments")
+
+        comments_ref = db.collection("notices") \
+            .document(notice_id) \
+            .collection("comments") \
+            .order_by("commented_at", direction=firestore.Query.ASCENDING)
+
+        comments = comments_ref.stream()
+
+        for c in comments:
+            comment_data = c.to_dict()
+            st.write(f"**{comment_data.get('name_father')}**")
+            st.write(comment_data.get("comment"))
+            st.caption(comment_data.get("commented_at"))
+            st.divider()
+
+        # ---------------- ADD COMMENT ----------------
+        if st.session_state.get("logged_in"):
+            auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
+        else:
+            auto_name = st.text_input(
+                f"Your Name (for comment) - {notice_id}"
+            )
+
+        comment_text = st.text_input(
+            f"Write Comment - {notice_id}"
+        )
+
+        if st.button(f"Post Comment {notice_id}"):
+
+            if comment_text.strip() == "":
+                st.warning("Comment cannot be empty.")
+            else:
+                db.collection("notices") \
+                    .document(notice_id) \
+                    .collection("comments") \
+                    .add({
+                        "comment": comment_text.strip(),
+                        "name_father": auto_name,
+                        "user_id": st.session_state.get("user_id", "public"),
+                        "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    })
+
+                st.success("Comment posted.")
+                st.rerun()
+
+        st.markdown("---")
+
+    if not found:
+        st.info("No notices posted yet.")
 # ---------------- LOGIN ----------------
 elif menu == "Login":
 
