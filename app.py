@@ -634,25 +634,34 @@ elif menu == "Plan Next Meeting":
     doc = db.collection("admin_settings").document("meeting_options").get()
 
     if not doc.exists:
-        st.error("Meeting options not found.")
+        st.error("No active meeting found.")
         st.stop()
 
     data = doc.to_dict()
 
     meeting_id = data.get("meeting_id")
+    meeting_status = data.get("status", "Closed")
+
     agenda_options = data.get("agenda_options", [])
     date_options = data.get("date_options", [])
     time_options = data.get("time_options", [])
     place_options = data.get("place_options", [])
 
     st.info(f"Current Meeting ID: {meeting_id}")
+    st.info(f"Status: {meeting_status}")
 
-    # ================= NAME AUTO FILL LOGIC =================
+    # 🚫 Block voting if meeting closed
+    if meeting_status != "Active":
+        st.warning("Meeting is closed. Voting is disabled.")
+        st.stop()
+
+    # ================= NAME AUTO FETCH =================
     if st.session_state.get("logged_in"):
 
         auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
+        user_id = st.session_state.get("user_id")
 
-        name_father = st.text_input(
+        st.text_input(
             "Your Name & Father Name",
             value=auto_name,
             disabled=True
@@ -661,9 +670,9 @@ elif menu == "Plan Next Meeting":
         clean_name = auto_name.lower()
 
     else:
-
-        name_father = st.text_input("Your Name & Father Name")
-        clean_name = name_father.strip().lower()
+        user_id = "public"
+        name_input = st.text_input("Your Name & Father Name")
+        clean_name = name_input.strip().lower()
 
     # ================= VOTING FORM =================
     with st.form("meeting_vote_form"):
@@ -681,11 +690,17 @@ elif menu == "Plan Next Meeting":
                 st.warning("Please enter your name.")
             else:
 
-                # Duplicate vote check
-                existing_vote = db.collection("meeting_details") \
-                    .where("meeting_id", "==", meeting_id) \
-                    .where("name_father", "==", clean_name) \
-                    .stream()
+                # ✅ Logged user duplicate check by user_id
+                if user_id != "public":
+                    existing_vote = db.collection("meeting_details") \
+                        .where("meeting_id", "==", meeting_id) \
+                        .where("user_id", "==", user_id) \
+                        .stream()
+                else:
+                    existing_vote = db.collection("meeting_details") \
+                        .where("meeting_id", "==", meeting_id) \
+                        .where("name_father", "==", clean_name) \
+                        .stream()
 
                 if list(existing_vote):
                     st.error("You have already voted for this meeting.")
@@ -694,12 +709,12 @@ elif menu == "Plan Next Meeting":
                     db.collection("meeting_details").add({
                         "meeting_id": meeting_id,
                         "name_father": clean_name,
-                        "user_id": st.session_state.get("user_id", "public"),
+                        "user_id": user_id,
                         "agenda": selected_agenda,
                         "date": selected_date,
                         "time": selected_time,
                         "place": selected_place,
-                        "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        "voted_at": datetime.now()
                     })
 
                     st.success("Vote submitted successfully!")
@@ -744,19 +759,22 @@ elif menu == "Plan Next Meeting":
                 for k, v in count_dict.items()
             }
 
-        st.write("### Agenda (%)")
-        st.write(calculate_percent(agenda_count))
+        col1, col2 = st.columns(2)
 
-        st.write("### Date (%)")
-        st.write(calculate_percent(date_count))
+        with col1:
+            st.write("### Agenda (%)")
+            st.write(calculate_percent(agenda_count))
 
-        st.write("### Time (%)")
-        st.write(calculate_percent(time_count))
+            st.write("### Date (%)")
+            st.write(calculate_percent(date_count))
 
-        st.write("### Place (%)")
-        st.write(calculate_percent(place_count))
+        with col2:
+            st.write("### Time (%)")
+            st.write(calculate_percent(time_count))
 
-        # -------- TABLE --------
+            st.write("### Place (%)")
+            st.write(calculate_percent(place_count))
+
         st.divider()
         st.subheader("📋 Submitted Votes")
 
@@ -766,4 +784,3 @@ elif menu == "Plan Next Meeting":
 
     else:
         st.info("No votes submitted yet.")
-            
