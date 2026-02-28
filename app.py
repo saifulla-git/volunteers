@@ -261,13 +261,16 @@ elif menu == "Admin Panel":
                 st.rerun()
 
         if current_status == "Active":
-        if st.button("Close Current Meeting"):
+
+    if st.button("Close Current Meeting"):
 
         meeting_id = current_meeting_id
 
         votes = db.collection("meeting_details") \
             .where("meeting_id", "==", meeting_id) \
             .stream()
+
+        # rest of your logic here
 
         agenda_count = {}
         date_count = {}
