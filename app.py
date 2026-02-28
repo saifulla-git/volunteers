@@ -893,3 +893,174 @@ elif menu == "Plan Next Meeting":
 
     else:
         st.info("No votes submitted yet.")
+        #---reports---#
+elif menu == "Reports":
+
+    st.title("📊 Reports")
+
+    if not st.session_state.get("logged_in"):
+        st.warning("Login required.")
+        st.stop()
+
+    user_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
+    user_id = st.session_state.get("user_id")
+    role = st.session_state.get("role")
+
+    tab1, tab2 = st.tabs(["📌 Complaint", "💡 Suggestions"])
+
+    # ======================================================
+    # ===================== COMPLAINT ======================
+    # ======================================================
+
+    with tab1:
+
+        st.subheader("Submit Complaint")
+
+        with st.form("complaint_form"):
+
+            complaint_text = st.text_area("Complaint Details")
+
+            option = st.radio(
+                "Select Action",
+                ["Consider Complaint", "Don't Consider Complaint"]
+            )
+
+            submit = st.form_submit_button("Submit Complaint")
+
+        if submit:
+
+            if complaint_text.strip() == "":
+                st.warning("Complaint cannot be empty.")
+            else:
+                db.collection("complaints").add({
+                    "user_id": user_id,
+                    "name": user_name,
+                    "complaint": complaint_text.strip(),
+                    "option": option,
+                    "submitted_at": datetime.now()
+                })
+
+                st.success("Complaint submitted.")
+                st.rerun()
+
+        # ---------- GRAPH ----------
+        st.divider()
+        st.subheader("Complaint Voting Summary")
+
+        complaints = db.collection("complaints").stream()
+
+        consider = 0
+        dont_consider = 0
+        table_data = []
+
+        for c in complaints:
+            data = c.to_dict()
+
+            if data.get("option") == "Consider Complaint":
+                consider += 1
+            else:
+                dont_consider += 1
+
+            table_data.append(data)
+
+        total = consider + dont_consider
+
+        if total > 0:
+
+            import pandas as pd
+
+            percent_data = {
+                "Consider Complaint": round((consider/total)*100,2),
+                "Don't Consider Complaint": round((dont_consider/total)*100,2)
+            }
+
+            df_percent = pd.DataFrame(percent_data, index=["%"]).T
+            st.bar_chart(df_percent, height=200)
+
+            # ---------- ADMIN TABLE ----------
+            if role == "Admin":
+                st.divider()
+                st.subheader("All Complaint Records")
+
+                df_table = pd.DataFrame(table_data)
+                st.dataframe(df_table, use_container_width=True)
+
+        else:
+            st.info("No complaint data yet.")
+
+    # ======================================================
+    # ==================== SUGGESTIONS =====================
+    # ======================================================
+
+    with tab2:
+
+        st.subheader("Submit Suggestion")
+
+        with st.form("suggestion_form"):
+
+            suggestion_text = st.text_area("Suggestion Details")
+
+            option = st.radio(
+                "Select Action",
+                ["Accept Suggestion", "Reject Suggestion"]
+            )
+
+            submit = st.form_submit_button("Submit Suggestion")
+
+        if submit:
+
+            if suggestion_text.strip() == "":
+                st.warning("Suggestion cannot be empty.")
+            else:
+                db.collection("suggestions").add({
+                    "user_id": user_id,
+                    "name": user_name,
+                    "suggestion": suggestion_text.strip(),
+                    "option": option,
+                    "submitted_at": datetime.now()
+                })
+
+                st.success("Suggestion submitted.")
+                st.rerun()
+
+        # ---------- GRAPH ----------
+        st.divider()
+        st.subheader("Suggestion Voting Summary")
+
+        suggestions = db.collection("suggestions").stream()
+
+        accept = 0
+        reject = 0
+        table_data = []
+
+        for s in suggestions:
+            data = s.to_dict()
+
+            if data.get("option") == "Accept Suggestion":
+                accept += 1
+            else:
+                reject += 1
+
+            table_data.append(data)
+
+        total = accept + reject
+
+        if total > 0:
+
+            percent_data = {
+                "Accept Suggestion": round((accept/total)*100,2),
+                "Reject Suggestion": round((reject/total)*100,2)
+            }
+
+            df_percent = pd.DataFrame(percent_data, index=["%"]).T
+            st.bar_chart(df_percent, height=200)
+
+            # TABLE VISIBLE TO ALL
+            st.divider()
+            st.subheader("All Suggestion Records")
+
+            df_table = pd.DataFrame(table_data)
+            st.dataframe(df_table, use_container_width=True)
+
+        else:
+            st.info("No suggestion data yet.")
