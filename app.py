@@ -265,9 +265,6 @@ if st.session_state.logged_in:
             })
             st.success("Notice Posted")
             import bcrypt
+import bcrypt
+st.write(bcrypt.hashpw("Admin123".encode(), bcrypt.gensalt()).decode())
 
-if st.button("Generate Fresh Hash"):
-    new_hash = bcrypt.hashpw("Admin123".encode(), bcrypt.gensalt()).decode()
-    st.write(new_hash)
-            
-           
