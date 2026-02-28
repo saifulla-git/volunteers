@@ -312,6 +312,41 @@ elif menu == "Plan Next Meeting":
 
     else:
         st.error("Meeting options not found.")
+st.divider()
+st.subheader("📊 Live Voting Results")
+
+votes = db.collection("meeting_details").stream()
+
+agenda_count = {}
+date_count = {}
+time_count = {}
+place_count = {}
+
+for vote in votes:
+    data = vote.to_dict()
+
+    agenda = data.get("agenda")
+    date = data.get("date")
+    time = data.get("time")
+    place = data.get("place")
+
+    agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+    date_count[date] = date_count.get(date, 0) + 1
+    time_count[time] = time_count.get(time, 0) + 1
+    place_count[place] = place_count.get(place, 0) + 1
+
+
+st.write("### Agenda Votes")
+st.write(agenda_count)
+
+st.write("### Date Votes")
+st.write(date_count)
+
+st.write("### Time Votes")
+st.write(time_count)
+
+st.write("### Place Votes")
+st.write(place_count)
                
 
 # ---------------- PLANNING ----------------
