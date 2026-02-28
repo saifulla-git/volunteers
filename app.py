@@ -264,3 +264,4 @@ if st.session_state.logged_in:
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M")
             })
             st.success("Notice Posted")
+            st.write(hash_password("admin123"))
