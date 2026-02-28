@@ -274,7 +274,7 @@ elif menu == "Meetings":
             st.success("Attendance Recorded")
 
 # ---------------- PLAN NEXT MEETING ----------------
- elif menu == "Plan Next Meeting":
+elif menu == "Plan Next Meeting":
 
     st.title("📅 Plan Next Meeting")
 
@@ -338,7 +338,6 @@ elif menu == "Meetings":
 
     else:
         st.error("Meeting options not found.")
-            
                      
         # ---------------- RESULTS ----------------
         st.divider()
