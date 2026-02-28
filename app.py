@@ -88,18 +88,20 @@ elif menu == "Public Notice Board":
 
     st.title("📢 Public Notice Board")
 
-    notices = db.collection("notices") \
+    notices_ref = db.collection("notices") \
         .order_by("is_pinned", direction=firestore.Query.DESCENDING) \
-        .order_by("posted_at", direction=firestore.Query.DESCENDING) \
-        .stream()
+        .order_by("posted_at", direction=firestore.Query.DESCENDING)
 
-    found = False
+    notices = notices_ref.stream()
 
-    for n in notices:
-        found = True
-        data = n.to_dict()
+    notice_found = False
 
-        notice_id = n.id
+    for notice_doc in notices:
+
+        notice_found = True
+        data = notice_doc.to_dict()
+        notice_id = notice_doc.id
+
         notice_text = data.get("notice", "")
         name_father = data.get("name_father", "Unknown")
         posted_at = data.get("posted_at", "")
@@ -111,43 +113,40 @@ elif menu == "Public Notice Board":
         st.markdown(f"### 🗞 {notice_text}")
         st.caption(f"Posted by: {name_father} | {posted_at}")
 
-        # ---------------- ADMIN DELETE ----------------
+        # ========== ADMIN DELETE ==========
         if st.session_state.get("role") == "Admin":
-            if st.button(f"🗑 Delete {notice_id}"):
+            if st.button(f"🗑 Delete Notice {notice_id}"):
                 db.collection("notices").document(notice_id).delete()
-                st.success("Notice deleted.")
+                st.success("Notice deleted successfully.")
                 st.rerun()
 
         st.divider()
 
-        # ================= COMMENTS SECTION =================
+        # ========== COMMENTS ==========
         st.subheader("💬 Comments")
 
         comments_ref = db.collection("notices") \
             .document(notice_id) \
             .collection("comments") \
-            .order_by("commented_at", direction=firestore.Query.ASCENDING)
+            .order_by("commented_at")
 
         comments = comments_ref.stream()
 
-        for c in comments:
-            comment_data = c.to_dict()
-            st.write(f"**{comment_data.get('name_father')}**")
-            st.write(comment_data.get("comment"))
-            st.caption(comment_data.get("commented_at"))
+        for comment_doc in comments:
+            comment_data = comment_doc.to_dict()
+
+            st.write(f"**{comment_data.get('name_father', 'User')}**")
+            st.write(comment_data.get("comment", ""))
+            st.caption(comment_data.get("commented_at", ""))
             st.divider()
 
-        # ---------------- ADD COMMENT ----------------
+        # ========== ADD COMMENT ==========
         if st.session_state.get("logged_in"):
             auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
         else:
-            auto_name = st.text_input(
-                f"Your Name (for comment) - {notice_id}"
-            )
+            auto_name = st.text_input(f"Your Name - {notice_id}")
 
-        comment_text = st.text_input(
-            f"Write Comment - {notice_id}"
-        )
+        comment_text = st.text_input(f"Write Comment - {notice_id}")
 
         if st.button(f"Post Comment {notice_id}"):
 
@@ -169,7 +168,7 @@ elif menu == "Public Notice Board":
 
         st.markdown("---")
 
-    if not found:
+    if not notice_found:
         st.info("No notices posted yet.")
 # ---------------- LOGIN ----------------
 elif menu == "Login":
