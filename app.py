@@ -213,23 +213,25 @@ elif menu == "Logout":
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
-    st.title("📊 Dashboard")
+    st.title("📊 Meeting Dashboard")
 
-    # Get current meeting settings
     doc = db.collection("admin_settings").document("meeting_options").get()
 
     if doc.exists:
 
         meeting_id = doc.to_dict().get("meeting_id")
+        st.info(f"Active Meeting ID: {meeting_id}")
 
-        st.info(f"Current Meeting ID: {meeting_id}")
-
-        # Fetch votes for current meeting
         votes = db.collection("meeting_details") \
             .where("meeting_id", "==", meeting_id) \
             .stream()
 
         agenda_count = {}
+        date_count = {}
+        time_count = {}
+        place_count = {}
+
+        rows = []
         total_votes = 0
 
         for vote in votes:
@@ -237,35 +239,69 @@ elif menu == "Dashboard":
             total_votes += 1
 
             agenda = data.get("agenda")
-            if agenda:
-                agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+            date = data.get("date")
+            time = data.get("time")
+            place = data.get("place")
+            name = data.get("name_father")
+
+            rows.append(data)
+
+            agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+            date_count[date] = date_count.get(date, 0) + 1
+            time_count[time] = time_count.get(time, 0) + 1
+            place_count[place] = place_count.get(place, 0) + 1
 
         if total_votes > 0:
 
-            # Calculate percentage
-            percent_data = {}
-            for key, value in agenda_count.items():
-                percent = round((value / total_votes) * 100, 2)
-                percent_data[key] = percent
+            st.metric("Total Votes", total_votes)
 
-            st.subheader("Agenda Vote Percentage")
-            st.write(percent_data)
-
-            # Create DataFrame for chart
             import pandas as pd
-            df = pd.DataFrame(
-                percent_data.items(),
-                columns=["Agenda", "Percentage"]
-            ).set_index("Agenda")
 
-            st.bar_chart(df)
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("Agenda %")
+                df_agenda = pd.DataFrame(
+                    {k: round((v/total_votes)*100,2) for k,v in agenda_count.items()},
+                    index=["%"]
+                ).T
+                st.bar_chart(df_agenda, height=250)
+
+                st.subheader("Date %")
+                df_date = pd.DataFrame(
+                    {k: round((v/total_votes)*100,2) for k,v in date_count.items()},
+                    index=["%"]
+                ).T
+                st.bar_chart(df_date, height=250)
+
+            with col2:
+                st.subheader("Time %")
+                df_time = pd.DataFrame(
+                    {k: round((v/total_votes)*100,2) for k,v in time_count.items()},
+                    index=["%"]
+                ).T
+                st.bar_chart(df_time, height=250)
+
+                st.subheader("Place %")
+                df_place = pd.DataFrame(
+                    {k: round((v/total_votes)*100,2) for k,v in place_count.items()},
+                    index=["%"]
+                ).T
+                st.bar_chart(df_place, height=250)
+
+            st.divider()
+            st.subheader("🗂 All Submitted Votes")
+
+            df_table = pd.DataFrame(rows)
+            st.dataframe(df_table, use_container_width=True)
 
         else:
-            st.info("No votes submitted for this meeting yet.")
+            st.warning("No votes submitted yet.")
 
     else:
         st.error("Meeting settings not found.")
-       
+        
+                
        
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
