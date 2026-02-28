@@ -278,18 +278,22 @@ elif menu == "Plan Next Meeting":
 
     st.title("📅 Plan Next Meeting")
 
-    # Get options from admin_settings
     doc = db.collection("admin_settings").document("meeting_options").get()
 
     if doc.exists:
         data = doc.to_dict()
+
+        meeting_id = data.get("meeting_id")
 
         agenda_options = data.get("agenda_options", [])
         date_options = data.get("date_options", [])
         time_options = data.get("time_options", [])
         place_options = data.get("place_options", [])
 
+        # ---------------- FORM ----------------
         with st.form("meeting_vote_form"):
+
+            name_father = st.text_input("Your Name & Father Name")
 
             selected_agenda = st.selectbox("Select Agenda", agenda_options)
             selected_date = st.selectbox("Select Date", date_options)
@@ -299,29 +303,38 @@ elif menu == "Plan Next Meeting":
             submit_vote = st.form_submit_button("Submit Vote")
 
             if submit_vote:
-                db.collection("meeting_details").add({
-                    "agenda": selected_agenda,
-                    "date": selected_date,
-                    "time": selected_time,
-                    "place": selected_place,
-                    "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                })
+                if name_father.strip() == "":
+                    st.warning("Please enter your name.")
+                else:
+                    db.collection("meeting_details").add({
+                        "meeting_id": meeting_id,
+                        "name_father": name_father,
+                        "agenda": selected_agenda,
+                        "date": selected_date,
+                        "time": selected_time,
+                        "place": selected_place,
+                        "voted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    })
 
-                st.success("Vote submitted successfully!")
+                    st.success("Vote submitted successfully!")
 
-        # ---------------- LIVE RESULTS ----------------
+        # ---------------- RESULTS ----------------
         st.divider()
         st.subheader("📊 Live Voting Results")
 
-        votes = db.collection("meeting_details").stream()
+        votes = db.collection("meeting_details").where("meeting_id", "==", meeting_id).stream()
 
         agenda_count = {}
         date_count = {}
         time_count = {}
         place_count = {}
 
+        vote_list = []
+        total_votes = 0
+
         for vote in votes:
             vote_data = vote.to_dict()
+            total_votes += 1
 
             agenda = vote_data.get("agenda")
             date = vote_data.get("date")
@@ -333,24 +346,45 @@ elif menu == "Plan Next Meeting":
             time_count[time] = time_count.get(time, 0) + 1
             place_count[place] = place_count.get(place, 0) + 1
 
-        st.write("### Agenda Votes")
-        st.write(agenda_count)
+            vote_list.append(vote_data)
 
-        st.write("### Date Votes")
-        st.write(date_count)
+        if total_votes > 0:
 
-        st.write("### Time Votes")
-        st.write(time_count)
+            def calculate_percent(count_dict):
+                return {k: round((v / total_votes) * 100, 2) for k, v in count_dict.items()}
 
-        st.write("### Place Votes")
-        st.write(place_count)
+            st.write("### Agenda (%)")
+            st.write(calculate_percent(agenda_count))
+
+            st.write("### Date (%)")
+            st.write(calculate_percent(date_count))
+
+            st.write("### Time (%)")
+            st.write(calculate_percent(time_count))
+
+            st.write("### Place (%)")
+            st.write(calculate_percent(place_count))
+
+            # ---------------- TABLE ----------------
+            st.divider()
+            st.subheader("📋 Submitted Votes")
+
+            import pandas as pd
+            df = pd.DataFrame(vote_list)
+
+            st.dataframe(df)
+
+        else:
+            st.info("No votes submitted yet.")
 
     else:
         st.error("Meeting options not found.")
-   
+           
+              
+      
 
-    
-
+        
+  
 
 
 # ---------------- PLANNING ----------------
