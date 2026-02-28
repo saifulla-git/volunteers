@@ -78,6 +78,7 @@ else:
         "Plan Next Meeting",
         "Planning",
         "Reports",
+        "Admin Panel",
         "Public Notice Board",
         "Logout"
     ])
@@ -145,13 +146,69 @@ elif menu == "Login":
                     })
                     st.success("Registration request submitted. Wait for admin approval.")
         
-                            
+  #admin---panel#
+# ---------------- ADMIN PANEL ----------------
+elif menu == "Admin Panel":
+
+    if st.session_state.role != "Admin":
+        st.error("Access Denied")
+    else:
+        st.title("👑 Admin Approval Panel")
+
+        requests = db.collection("registration_requests").where("status", "==", "pending").stream()
+
+        for req in requests:
+            data = req.to_dict()
+            doc_id = req.id
+
+            st.subheader(data.get("name"))
+            st.write("Father Name:", data.get("father_name"))
+            st.write("Mobile:", data.get("mobile"))
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button(f"Approve {doc_id}"):
+
+                    # Generate password
+                    raw_password = data.get("mobile")[-4:]
+                    hashed = hash_password(raw_password)
+
+                    db.collection("users").add({
+                        "name": data.get("name"),
+                        "father_name": data.get("father_name"),
+                        "mobile": data.get("mobile"),
+                        "password_hash": hashed,
+                        "role": "Member",
+                        "is_approved": True,
+                        "is_blocked": False
+                    })
+
+                    db.collection("registration_requests").document(doc_id).update({
+                        "status": "approved"
+                    })
+
+                    st.success(f"Approved. Password is last 4 digits: {raw_password}")
+                    st.rerun()
+
+            with col2:
+                if st.button(f"Reject {doc_id}"):
+
+                    db.collection("registration_requests").document(doc_id).update({
+                        "status": "rejected"
+                    })
+
+                    st.warning("Request Rejected")
+                    st.rerun()
+
+            st.divider()
 # ---------------- LOGOUT ----------------
 elif menu == "Logout":
     st.session_state.logged_in = False
     st.session_state.role = None
     st.session_state.user_id = None
     st.rerun()
+    
 
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
