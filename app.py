@@ -261,7 +261,7 @@ elif menu == "Admin Panel":
                 st.rerun()
 
         if current_status == "Active":
-    if st.button("Close Current Meeting"):
+        if st.button("Close Current Meeting"):
 
         meeting_id = current_meeting_id
 
