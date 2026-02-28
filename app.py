@@ -312,7 +312,7 @@ elif menu == "Admin Panel":
         st.title("👑 Admin Panel")
 
         # ================= MEETING MANAGEMENT =================
-        selif menu == "Meetings":
+        elif menu == "Meetings":
 
     import pandas as pd
     from datetime import datetime, timedelta
