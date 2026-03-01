@@ -1177,3 +1177,128 @@ elif menu == "Reports":
                 st.info("No likes yet.")
 
             st.divider()
+
+elif menu == "Admin Panel":
+
+    if st.session_state.role != "Admin":
+        st.error("⛔ Access Denied")
+        st.stop()
+
+    st.title("👑 Admin Panel")
+
+    # ================= FETCH MEETING =================
+    meeting_ref = db.collection("admin_settings").document("meeting_options")
+    meeting_doc = meeting_ref.get()
+    meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+
+    current_meeting_id = meeting_data.get("meeting_id")
+    current_status = meeting_data.get("status", "Closed")
+
+    # ================= CURRENT STATUS =================
+    st.subheader("📌 Current Meeting Status")
+
+    col1, col2 = st.columns(2)
+    col1.info(f"Meeting ID: {current_meeting_id if current_meeting_id else 'Not Set'}")
+    col2.info(f"Status: {current_status}")
+
+    st.divider()
+
+    # ================= CREATE / UPDATE =================
+    st.subheader("🛠 Create / Update Meeting")
+
+    with st.form("meeting_form"):
+
+        new_meeting_id = st.text_input("Meeting ID")
+
+        agenda_input = st.text_area("Agenda Options (comma separated)")
+        date_input = st.text_area("Date Options (comma separated)")
+        time_input = st.text_area("Time Options (comma separated)")
+        place_input = st.text_area("Place Options (comma separated)")
+
+        submit_meeting = st.form_submit_button("💾 Save & Activate Meeting")
+
+        if submit_meeting:
+
+            if not new_meeting_id.strip():
+                st.error("⚠ Meeting ID is required.")
+            else:
+
+                meeting_ref.set({
+                    "meeting_id": new_meeting_id.strip(),
+                    "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                    "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                    "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                    "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                    "status": "Active",
+                    "created_at": datetime.utcnow()
+                })
+
+                st.success("✅ Meeting saved and activated.")
+                st.rerun()
+
+    # ================= CLOSE MEETING =================
+    if current_status == "Active":
+
+        st.divider()
+        st.subheader("🔒 Finalize Meeting")
+
+        confirm_close = st.checkbox("I confirm to close this meeting")
+
+        if confirm_close and st.button("🚨 Close Current Meeting"):
+
+            votes_query = db.collection("meeting_details") \
+                            .where("meeting_id", "==", current_meeting_id)
+
+            votes = list(votes_query.stream())
+
+            if not votes:
+                st.error("⚠ No votes to finalize.")
+                st.stop()
+
+            agenda_count = {}
+            date_count = {}
+            time_count = {}
+            place_count = {}
+
+            for vote in votes:
+                data = vote.to_dict()
+
+                agenda = data.get("agenda")
+                date = data.get("date")
+                time = data.get("time")
+                place = data.get("place")
+
+                if agenda:
+                    agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+                if date:
+                    date_count[date] = date_count.get(date, 0) + 1
+                if time:
+                    time_count[time] = time_count.get(time, 0) + 1
+                if place:
+                    place_count[place] = place_count.get(place, 0) + 1
+
+            total_votes = len(votes)
+
+            winning_agenda = max(agenda_count, key=agenda_count.get)
+            winning_date = max(date_count, key=date_count.get)
+            winning_time = max(time_count, key=time_count.get)
+            winning_place = max(place_count, key=place_count.get)
+
+            # Save Results
+            db.collection("meeting_results").document(current_meeting_id).set({
+                "meeting_id": current_meeting_id,
+                "total_votes": total_votes,
+                "winning_agenda": winning_agenda,
+                "winning_date": winning_date,
+                "winning_time": winning_time,
+                "winning_place": winning_place,
+                "finalized_at": datetime.utcnow()
+            })
+
+            # Close Meeting
+            meeting_ref.update({
+                "status": "Closed"
+            })
+
+            st.success("🎉 Meeting finalized and closed successfully.")
+            st.rerun()
