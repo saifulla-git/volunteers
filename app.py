@@ -1384,41 +1384,42 @@ elif menu == "Admin Panel":
                         st.rerun()
 
             # ===== RESET PASSWORD =====
-            with col2:
+        with col2:
     if st.button("🔑 Reset Password", key=f"reset_{user_id}"):
 
         # 🔒 Prevent admin resetting own password accidentally
         if user_id == st.session_state.get("user_id"):
             st.error("You cannot reset your own password from here.")
-            st.stop()
-
-        if mobile and mobile.isdigit() and len(mobile) == 10:
-
-            # 🔑 New temporary password = last 4 digits
-            new_password = mobile[-4:]
-            hashed_password = hash_password(new_password)
-
-            db.collection("users").document(user_id).update({
-                "password_hash": hashed_password,
-                "must_change_password": True,   # 🔥 FORCE CHANGE ON NEXT LOGIN
-                "updated_at": datetime.utcnow()
-            })
-
-            # 📝 Admin Action Log
-            db.collection("admin_logs").add({
-                "action": "reset_password",
-                "admin_id": st.session_state.get("user_id"),
-                "target_mobile": mobile,
-                "timestamp": datetime.utcnow()
-            })
-
-            st.success(f"✅ Password reset to last 4 digits: {new_password}")
-            st.info("User must change password on next login.")
-
-            st.rerun()
-
         else:
-            st.error("Invalid mobile number.")
+
+            # ✅ Validate mobile number
+            if mobile and mobile.isdigit() and len(mobile) == 10:
+
+                # 🔑 Temporary password = last 4 digits
+                new_password = mobile[-4:]
+                hashed_password = hash_password(new_password)
+
+                # 🔥 Update user document
+                db.collection("users").document(user_id).update({
+                    "password_hash": hashed_password,
+                    "must_change_password": True,
+                    "updated_at": datetime.utcnow()
+                })
+
+                # 📝 Log admin action
+                db.collection("admin_logs").add({
+                    "action": "reset_password",
+                    "admin_id": st.session_state.get("user_id"),
+                    "target_mobile": mobile,
+                    "timestamp": datetime.utcnow()
+                })
+
+                st.success(f"✅ Password reset to: {new_password}")
+                st.info("User must change password on next login.")
+                st.rerun()
+
+            else:
+                st.error("Invalid mobile number.")
     # =========================================================
     # ================= MEETING MANAGEMENT ====================
     # =========================================================
