@@ -240,23 +240,26 @@ elif menu == "Login":
         elif user.get("is_blocked", False):
             st.error("Your account is blocked.")
 
-        elif check_password(password, user["password_hash"]):
+        elif check_password(password, user.get("password_hash")):
 
-            # ✅ SESSION SET
-            st.session_state.logged_in = True
-            st.session_state.role = user["role"]
-            st.session_state.user_id = user["id"]
-            st.session_state.name = user.get("name")
-            st.session_state.father_name = user.get("father_name")
-
-            # 🔥 CHECK IF PASSWORD CHANGE REQUIRED
+            # 🔥 If password change required
             if user.get("must_change_password", False):
-                st.session_state.force_password_change = True
-            else:
-                st.session_state.force_password_change = False
 
-            st.success("Login Successful")
-            st.rerun()
+                st.session_state.force_password_change = True
+                st.session_state.temp_user_id = user.get("id")
+                st.warning("⚠ You must change your password first.")
+                st.rerun()
+
+            else:
+                # ✅ Normal Login
+                st.session_state.logged_in = True
+                st.session_state.role = user.get("role")
+                st.session_state.user_id = user.get("id")
+                st.session_state.name = user.get("name")
+                st.session_state.father_name = user.get("father_name")
+
+                st.success("Login Successful")
+                st.rerun()
 
         else:
             st.error("Wrong Password")
@@ -284,19 +287,21 @@ elif menu == "Login":
 
             hashed_password = hash_password(new_password)
 
-            db.collection("users").document(st.session_state.user_id).update({
+            db.collection("users").document(
+                st.session_state.get("temp_user_id")
+            ).update({
                 "password_hash": hashed_password,
                 "must_change_password": False
             })
 
+            # Reset force mode
             st.session_state.force_password_change = False
+            st.session_state.temp_user_id = None
 
             st.success("Password updated successfully. Please login again.")
-            st.session_state.logged_in = False
             st.rerun()
 
     st.divider()
-
     # ---------------- REGISTRATION ----------------
     st.subheader("📝 New Registration")
 
@@ -1424,43 +1429,7 @@ for index, user in enumerate(users):
             st.rerun()
 
     # 🔑 RESET PASSWORD
-   elif menu == "Login":
-
-    st.title("🔐 Login")
-
-    mobile = st.text_input("Mobile Number")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-
-        user = get_user_by_mobile(mobile)
-
-        if not user:
-            st.error("User not found")
-
-        elif not user.get("is_approved", False):
-            st.warning("Account not approved by admin yet.")
-
-        elif user.get("is_blocked", False):
-            st.error("Your account is blocked.")
-
-        elif check_password(password, user.get("password_hash")):
-
-            # ✅ SESSION SET
-            st.session_state.logged_in = True
-            st.session_state.role = user.get("role")
-            st.session_state.user_id = user.get("id")
-
-            st.session_state.name = user.get("name")
-            st.session_state.father_name = user.get("father_name")
-
-            st.success("Login Successful")
-            st.rerun()
-
-        else:
-            st.error("Wrong Password")
-                   
-    st.divider()
+ 
     # =========================================================
     # ================= MEETING MANAGEMENT ====================
     # =========================================================
