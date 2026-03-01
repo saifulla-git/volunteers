@@ -247,7 +247,6 @@ elif menu == "Login":
             st.session_state.role = user["role"]
             st.session_state.user_id = user["id"]
 
-            # 🔥 AUTO NAME STORE (IMPORTANT)
             st.session_state.name = user.get("name")
             st.session_state.father_name = user.get("father_name")
 
@@ -266,51 +265,55 @@ elif menu == "Login":
 
         reg_name = st.text_input("Full Name")
         reg_father = st.text_input("Father Name")
-        reg_mobile = st.text_input("Mobile Number")
+        reg_mobile = st.text_input("Mobile Number (10 digits)")
 
         reg_submit = st.form_submit_button("Submit Registration")
 
         if reg_submit:
 
-            if reg_name.strip() == "" or reg_father.strip() == "" or reg_mobile.strip() == "":
+            reg_name = reg_name.strip()
+            reg_father = reg_father.strip()
+            reg_mobile = reg_mobile.strip()
+
+            # ✅ Required Check
+            if reg_name == "" or reg_father == "" or reg_mobile == "":
                 st.warning("All fields are required.")
+                st.stop()
 
-            else:
-                existing_user = db.collection("users").where(
-                    "mobile", "==", reg_mobile
-                ).stream()
+            # ✅ Mobile Validation (10 digits only)
+            if not reg_mobile.isdigit() or len(reg_mobile) != 10:
+                st.error("Mobile number must be exactly 10 digits.")
+                st.stop()
 
-                if list(existing_user):
-                    st.warning("User already registered. Please login.")
+            # ✅ Check if already user
+            existing_user = db.collection("users") \
+                .where("mobile", "==", reg_mobile) \
+                .stream()
 
-                else:
-                    existing_request = db.collection("registration_requests").where(
-                        "mobile", "==", reg_mobile
-                    ).stream()
+            if list(existing_user):
+                st.warning("User already registered. Please login.")
+                st.stop()
 
-                    if list(existing_request):
-                        st.warning("Registration already pending.")
+            # ✅ Check if request already pending
+            existing_request = db.collection("registration_requests") \
+                .where("mobile", "==", reg_mobile) \
+                .stream()
 
-                    else:
-                        db.collection("registration_requests").add({
-                            "name": reg_name.strip(),
-                            "father_name": reg_father.strip(),
-                            "mobile": reg_mobile.strip(),
-                            "status": "pending",
-                            "requested_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        })
+            if list(existing_request):
+                st.warning("Registration already pending approval.")
+                st.stop()
 
-                        st.success("Registration request submitted. Wait for admin approval.")
-  #admin---panel#
-# ---------------- ADMIN PANEL ----------------
-elif menu == "Admin Panel":
+            # ✅ Save Registration Request
+            db.collection("registration_requests").add({
+                "name": reg_name,
+                "father_name": reg_father,
+                "mobile": reg_mobile,
+                "status": "pending",
+                "requested_at": datetime.utcnow()
+            })
 
-    if st.session_state.role != "Admin":
-        st.error("Access Denied")
-    else:
-
-        st.title("👑 Admin Panel")
-
+            st.success("Registration request submitted. Wait for admin approval.")
+            st.rerun()
         # ================= MEETING MANAGEMENT =================
 elif menu == "Meetings":
 
