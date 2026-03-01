@@ -246,15 +246,54 @@ elif menu == "Login":
             st.session_state.logged_in = True
             st.session_state.role = user["role"]
             st.session_state.user_id = user["id"]
-
             st.session_state.name = user.get("name")
             st.session_state.father_name = user.get("father_name")
+
+            # 🔥 CHECK IF PASSWORD CHANGE REQUIRED
+            if user.get("must_change_password", False):
+                st.session_state.force_password_change = True
+            else:
+                st.session_state.force_password_change = False
 
             st.success("Login Successful")
             st.rerun()
 
         else:
             st.error("Wrong Password")
+
+    # =====================================================
+    # 🔐 FORCE PASSWORD CHANGE SCREEN
+    # =====================================================
+
+    if st.session_state.get("force_password_change"):
+
+        st.warning("⚠ You must change your password before continuing.")
+
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+
+        if st.button("Update Password"):
+
+            if len(new_password) < 6:
+                st.error("Password must be at least 6 characters.")
+                st.stop()
+
+            if new_password != confirm_password:
+                st.error("Passwords do not match.")
+                st.stop()
+
+            hashed_password = hash_password(new_password)
+
+            db.collection("users").document(st.session_state.user_id).update({
+                "password_hash": hashed_password,
+                "must_change_password": False
+            })
+
+            st.session_state.force_password_change = False
+
+            st.success("Password updated successfully. Please login again.")
+            st.session_state.logged_in = False
+            st.rerun()
 
     st.divider()
 
@@ -275,17 +314,14 @@ elif menu == "Login":
             reg_father = reg_father.strip()
             reg_mobile = reg_mobile.strip()
 
-            # ✅ Required Check
             if reg_name == "" or reg_father == "" or reg_mobile == "":
                 st.warning("All fields are required.")
                 st.stop()
 
-            # ✅ Mobile Validation (10 digits only)
             if not reg_mobile.isdigit() or len(reg_mobile) != 10:
                 st.error("Mobile number must be exactly 10 digits.")
                 st.stop()
 
-            # ✅ Check if already user
             existing_user = db.collection("users") \
                 .where("mobile", "==", reg_mobile) \
                 .stream()
@@ -294,7 +330,6 @@ elif menu == "Login":
                 st.warning("User already registered. Please login.")
                 st.stop()
 
-            # ✅ Check if request already pending
             existing_request = db.collection("registration_requests") \
                 .where("mobile", "==", reg_mobile) \
                 .stream()
@@ -303,7 +338,6 @@ elif menu == "Login":
                 st.warning("Registration already pending approval.")
                 st.stop()
 
-            # ✅ Save Registration Request
             db.collection("registration_requests").add({
                 "name": reg_name,
                 "father_name": reg_father,
@@ -314,7 +348,7 @@ elif menu == "Login":
 
             st.success("Registration request submitted. Wait for admin approval.")
             st.rerun()
-        # ================= MEETING MANAGEMENT =================
+           ================= MEETING MANAGEMENT =================
 elif menu == "Meetings":
 
     import pandas as pd
