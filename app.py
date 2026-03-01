@@ -1177,14 +1177,92 @@ elif menu == "Reports":
                 st.info("No likes yet.")
 
             st.divider()
-
+#------admin panel-----#
+#-------a--------------#
 elif menu == "Admin Panel":
 
-    if st.session_state.role != "Admin":
+    if st.session_state.get("role") != "Admin":
         st.error("⛔ Access Denied")
         st.stop()
 
     st.title("👑 Admin Panel")
+
+    # =========================================================
+    # ================= REGISTRATION REQUESTS =================
+    # =========================================================
+
+    st.subheader("📝 Registration Requests")
+
+    requests = list(db.collection("registration_requests").stream())
+
+    if not requests:
+        st.info("No pending registration requests.")
+    else:
+        for req in requests:
+
+            data = req.to_dict()
+            req_id = req.id
+
+            name = data.get("name")
+            father_name = data.get("father_name")
+            mobile = data.get("mobile")
+
+            st.markdown(f"### 👤 {name} / {father_name}")
+            st.write(f"📱 Mobile: {mobile}")
+
+            col1, col2 = st.columns(2)
+
+            # ===== APPROVE =====
+            with col1:
+                if st.button("✅ Approve", key=f"approve_{req_id}"):
+
+                    # Prevent duplicate user creation
+                    existing_user = db.collection("users") \
+                        .where("mobile", "==", mobile) \
+                        .stream()
+
+                    if list(existing_user):
+                        st.warning("User already exists.")
+                        db.collection("registration_requests").document(req_id).delete()
+                        st.rerun()
+
+                    username = mobile
+                    plain_password = mobile[-4:]  # Last 4 digits
+                    hashed_password = hash_password(plain_password)
+
+                    db.collection("users").document(username).set({
+                        "name": name,
+                        "father_name": father_name,
+                        "mobile": mobile,
+                        "role": "Member",
+                        "password_hash": hashed_password,
+                        "is_approved": True,
+                        "is_blocked": False,
+                        "created_at": datetime.utcnow()
+                    })
+
+                    db.collection("registration_requests").document(req_id).delete()
+
+                    st.success(
+                        f"✅ User Approved!\n\nUsername: {username}\nPassword: {plain_password}"
+                    )
+
+                    st.rerun()
+
+            # ===== REJECT =====
+            with col2:
+                if st.button("❌ Reject", key=f"reject_{req_id}"):
+
+                    db.collection("registration_requests").document(req_id).delete()
+
+                    st.warning("Registration Rejected.")
+                    st.rerun()
+
+            st.divider()
+
+    # =========================================================
+    # ================= MEETING MANAGEMENT ====================
+    # =========================================================
 
     # ================= FETCH MEETING =================
     meeting_ref = db.collection("admin_settings").document("meeting_options")
@@ -1284,7 +1362,6 @@ elif menu == "Admin Panel":
             winning_time = max(time_count, key=time_count.get)
             winning_place = max(place_count, key=place_count.get)
 
-            # Save Results
             db.collection("meeting_results").document(current_meeting_id).set({
                 "meeting_id": current_meeting_id,
                 "total_votes": total_votes,
@@ -1295,10 +1372,7 @@ elif menu == "Admin Panel":
                 "finalized_at": datetime.utcnow()
             })
 
-            # Close Meeting
-            meeting_ref.update({
-                "status": "Closed"
-            })
+            meeting_ref.update({"status": "Closed"})
 
             st.success("🎉 Meeting finalized and closed successfully.")
             st.rerun()
