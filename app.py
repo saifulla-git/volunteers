@@ -1386,42 +1386,75 @@ elif menu == "Admin Panel":
             # ===== RESET PASSWORD =====
         col1, col2 = st.columns(2)
 
-with col2:
-    if st.button("🔑 Reset Password", key=f"reset_{user_id}"):
+users = db.collection("users").stream()
 
-        # 🔒 Prevent admin resetting own password accidentally
-        if user_id == st.session_state.get("user_id"):
-            st.error("You cannot reset your own password from here.")
+for user in users:
+    data = user.to_dict()
+    user_id = user.id
+    mobile = data.get("mobile")
 
-        else:
-            # ✅ Validate mobile number
-            if mobile and mobile.isdigit() and len(mobile) == 10:
+    st.markdown(f"### 👤 {data.get('name')} / {data.get('father_name')}")
+    st.write(f"📱 Mobile: {mobile}")
+    st.write(f"🎭 Role: {data.get('role')}")
+    st.write(f"📌 Status: {'Blocked' if data.get('is_blocked') else 'Active'}")
 
-                # 🔑 Temporary password = last 4 digits
-                new_password = mobile[-4:]
-                hashed_password = hash_password(new_password)
+    col1, col2 = st.columns(2)
 
-                # 🔥 Update user document
-                db.collection("users").document(user_id).update({
-                    "password_hash": hashed_password,
-                    "must_change_password": True,
-                    "updated_at": datetime.utcnow()
-                })
+    # 🔒 BLOCK / UNBLOCK BUTTON
+    with col1:
+        if st.button("🚫 Block / Unblock", key=f"block_{user_id}"):
 
-                # 📝 Log admin action
-                db.collection("admin_logs").add({
-                    "action": "reset_password",
-                    "admin_id": st.session_state.get("user_id"),
-                    "target_mobile": mobile,
-                    "timestamp": datetime.utcnow()
-                })
+            new_status = not data.get("is_blocked", False)
 
-                st.success(f"✅ Password reset to: {new_password}")
-                st.info("User must change password on next login.")
-                st.rerun()
+            db.collection("users").document(user_id).update({
+                "is_blocked": new_status,
+                "updated_at": datetime.utcnow()
+            })
 
+            db.collection("admin_logs").add({
+                "action": "block_unblock_user",
+                "admin_id": st.session_state.get("user_id"),
+                "target_mobile": mobile,
+                "timestamp": datetime.utcnow()
+            })
+
+            st.success("User status updated.")
+            st.rerun()
+
+    # 🔑 RESET PASSWORD BUTTON
+    with col2:
+        if st.button("🔑 Reset Password", key=f"reset_{user_id}"):
+
+            if user_id == st.session_state.get("user_id"):
+                st.error("You cannot reset your own password.")
             else:
-                st.error("Invalid mobile number.")
+
+                if mobile and mobile.isdigit() and len(mobile) == 10:
+
+                    temp_password = mobile[-4:]
+                    hashed_password = hash_password(temp_password)
+
+                    db.collection("users").document(user_id).update({
+                        "password_hash": hashed_password,
+                        "must_change_password": True,
+                        "updated_at": datetime.utcnow()
+                    })
+
+                    db.collection("admin_logs").add({
+                        "action": "reset_password",
+                        "admin_id": st.session_state.get("user_id"),
+                        "target_mobile": mobile,
+                        "timestamp": datetime.utcnow()
+                    })
+
+                    st.success(f"Password reset to: {temp_password}")
+                    st.info("User must change password on next login.")
+                    st.rerun()
+
+                else:
+                    st.error("Invalid mobile number.")
+
+    st.divider()
     # =========================================================
     # ================= MEETING MANAGEMENT ====================
     # =========================================================
