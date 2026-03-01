@@ -1422,14 +1422,56 @@ for user in users:
             st.rerun()
 
     # 🔑 RESET PASSWORD BUTTON
+    users = list(db.collection("users").stream())
+
+for index, user in enumerate(users):
+    data = user.to_dict()
+    user_id = user.id
+    mobile = data.get("mobile", "")
+
+    st.markdown(f"### 👤 {data.get('name')} / {data.get('father_name')}")
+    st.write(f"📱 Mobile: {mobile}")
+    st.write(f"🎭 Role: {data.get('role')}")
+    st.write(f"📌 Status: {'Blocked' if data.get('is_blocked') else 'Active'}")
+
+    col1, col2 = st.columns(2)
+
+    # 🔒 BLOCK / UNBLOCK
+    with col1:
+        if st.button(
+            "🚫 Block / Unblock",
+            key=f"block_{user_id}_{index}"   # 🔥 index added
+        ):
+
+            new_status = not data.get("is_blocked", False)
+
+            db.collection("users").document(user_id).update({
+                "is_blocked": new_status,
+                "updated_at": datetime.utcnow()
+            })
+
+            db.collection("admin_logs").add({
+                "action": "block_unblock_user",
+                "admin_id": st.session_state.get("user_id"),
+                "target_mobile": mobile,
+                "timestamp": datetime.utcnow()
+            })
+
+            st.success("User status updated.")
+            st.rerun()
+
+    # 🔑 RESET PASSWORD
     with col2:
-        if st.button("🔑 Reset Password", key=f"reset_{user_id}"):
+        if st.button(
+            "🔑 Reset Password",
+            key=f"reset_{user_id}_{index}"   # 🔥 index added
+        ):
 
             if user_id == st.session_state.get("user_id"):
                 st.error("You cannot reset your own password.")
             else:
 
-                if mobile and mobile.isdigit() and len(mobile) == 10:
+                if mobile.isdigit() and len(mobile) == 10:
 
                     temp_password = mobile[-4:]
                     hashed_password = hash_password(temp_password)
@@ -1450,7 +1492,6 @@ for user in users:
                     st.success(f"Password reset to: {temp_password}")
                     st.info("User must change password on next login.")
                     st.rerun()
-
                 else:
                     st.error("Invalid mobile number.")
 
