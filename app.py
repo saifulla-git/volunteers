@@ -348,7 +348,7 @@ elif menu == "Login":
 
             st.success("Registration request submitted. Wait for admin approval.")
             st.rerun()
-           ================= MEETING MANAGEMENT =================
+================= MEETING MANAGEMENT =================
 elif menu == "Meetings":
 
     import pandas as pd
