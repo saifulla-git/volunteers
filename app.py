@@ -1384,14 +1384,16 @@ elif menu == "Admin Panel":
                         st.rerun()
 
             # ===== RESET PASSWORD =====
-        with col2:
+        col1, col2 = st.columns(2)
+
+with col2:
     if st.button("🔑 Reset Password", key=f"reset_{user_id}"):
 
         # 🔒 Prevent admin resetting own password accidentally
         if user_id == st.session_state.get("user_id"):
             st.error("You cannot reset your own password from here.")
-        else:
 
+        else:
             # ✅ Validate mobile number
             if mobile and mobile.isdigit() and len(mobile) == 10:
 
