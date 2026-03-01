@@ -1383,7 +1383,6 @@ elif menu == "Admin Panel":
                         st.success("User Unblocked.")
                         st.rerun()
 
-            # ===== RESET PASSWORD =====
 # ================= USER MANAGEMENT =================
 
 st.subheader("👥 All Users")
@@ -1425,37 +1424,42 @@ for index, user in enumerate(users):
             st.rerun()
 
     # 🔑 RESET PASSWORD
-    with col2:
-        if st.button("🔑 Reset Password", key=f"reset_{user_id}_{index}"):
+   elif menu == "Login":
 
-            if user_id == st.session_state.get("user_id"):
-                st.error("You cannot reset your own password.")
-            else:
+    st.title("🔐 Login")
 
-                if mobile.isdigit() and len(mobile) == 10:
+    mobile = st.text_input("Mobile Number")
+    password = st.text_input("Password", type="password")
 
-                    temp_password = mobile[-4:]
-                    hashed_password = hash_password(temp_password)
+    if st.button("Login"):
 
-                    db.collection("users").document(user_id).update({
-                        "password_hash": hashed_password,
-                        "must_change_password": True,
-                        "updated_at": datetime.utcnow()
-                    })
+        user = get_user_by_mobile(mobile)
 
-                    db.collection("admin_logs").add({
-                        "action": "reset_password",
-                        "admin_id": st.session_state.get("user_id"),
-                        "target_mobile": mobile,
-                        "timestamp": datetime.utcnow()
-                    })
+        if not user:
+            st.error("User not found")
 
-                    st.success(f"Password reset to: {temp_password}")
-                    st.info("User must change password on next login.")
-                    st.rerun()
-                else:
-                    st.error("Invalid mobile number.")
+        elif not user.get("is_approved", False):
+            st.warning("Account not approved by admin yet.")
 
+        elif user.get("is_blocked", False):
+            st.error("Your account is blocked.")
+
+        elif check_password(password, user.get("password_hash")):
+
+            # ✅ SESSION SET
+            st.session_state.logged_in = True
+            st.session_state.role = user.get("role")
+            st.session_state.user_id = user.get("id")
+
+            st.session_state.name = user.get("name")
+            st.session_state.father_name = user.get("father_name")
+
+            st.success("Login Successful")
+            st.rerun()
+
+        else:
+            st.error("Wrong Password")
+                   
     st.divider()
     # =========================================================
     # ================= MEETING MANAGEMENT ====================
