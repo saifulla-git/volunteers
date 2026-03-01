@@ -1384,47 +1384,14 @@ elif menu == "Admin Panel":
                         st.rerun()
 
             # ===== RESET PASSWORD =====
-        col1, col2 = st.columns(2)
+# ================= USER MANAGEMENT =================
 
-users = db.collection("users").stream()
+st.subheader("👥 All Users")
 
-for user in users:
-    data = user.to_dict()
-    user_id = user.id
-    mobile = data.get("mobile")
-
-    st.markdown(f"### 👤 {data.get('name')} / {data.get('father_name')}")
-    st.write(f"📱 Mobile: {mobile}")
-    st.write(f"🎭 Role: {data.get('role')}")
-    st.write(f"📌 Status: {'Blocked' if data.get('is_blocked') else 'Active'}")
-
-    col1, col2 = st.columns(2)
-
-    # 🔒 BLOCK / UNBLOCK BUTTON
-    with col1:
-        if st.button("🚫 Block / Unblock", key=f"block_{user_id}"):
-
-            new_status = not data.get("is_blocked", False)
-
-            db.collection("users").document(user_id).update({
-                "is_blocked": new_status,
-                "updated_at": datetime.utcnow()
-            })
-
-            db.collection("admin_logs").add({
-                "action": "block_unblock_user",
-                "admin_id": st.session_state.get("user_id"),
-                "target_mobile": mobile,
-                "timestamp": datetime.utcnow()
-            })
-
-            st.success("User status updated.")
-            st.rerun()
-
-    # 🔑 RESET PASSWORD BUTTON
-    users = list(db.collection("users").stream())
+users = list(db.collection("users").stream())
 
 for index, user in enumerate(users):
+
     data = user.to_dict()
     user_id = user.id
     mobile = data.get("mobile", "")
@@ -1438,10 +1405,7 @@ for index, user in enumerate(users):
 
     # 🔒 BLOCK / UNBLOCK
     with col1:
-        if st.button(
-            "🚫 Block / Unblock",
-            key=f"block_{user_id}_{index}"   # 🔥 index added
-        ):
+        if st.button("🚫 Block / Unblock", key=f"block_{user_id}_{index}"):
 
             new_status = not data.get("is_blocked", False)
 
@@ -1462,10 +1426,7 @@ for index, user in enumerate(users):
 
     # 🔑 RESET PASSWORD
     with col2:
-        if st.button(
-            "🔑 Reset Password",
-            key=f"reset_{user_id}_{index}"   # 🔥 index added
-        ):
+        if st.button("🔑 Reset Password", key=f"reset_{user_id}_{index}"):
 
             if user_id == st.session_state.get("user_id"):
                 st.error("You cannot reset your own password.")
