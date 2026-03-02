@@ -1141,13 +1141,10 @@ elif menu == "Admin Panel":
         st.error("⛔ Access Denied")
         st.stop()
 
-    st.title("👑 Admin Panel")
+    st.title("Admin Panel")
 
-    # =========================================================
     # ================= REGISTRATION REQUESTS =================
-    # =========================================================
-
-    st.subheader("📝 Registration Requests")
+    st.subheader("Registration Requests")
 
     requests = list(db.collection("registration_requests").stream())
 
@@ -1158,16 +1155,13 @@ elif menu == "Admin Panel":
 
             data = req.to_dict()
             req_id = req.id
-
             name = data.get("name")
             father_name = data.get("father_name")
             mobile = data.get("mobile")
 
-            # Skip invalid
             if not mobile:
                 continue
 
-            # Auto-clean if already approved
             existing_user = list(
                 db.collection("users")
                 .where("mobile", "==", mobile)
@@ -1178,18 +1172,13 @@ elif menu == "Admin Panel":
                 db.collection("registration_requests").document(req_id).delete()
                 continue
 
-            st.markdown(f"### 👤 {name} / {father_name}")
-            st.write(f"📱 Mobile: {mobile}")
+            st.markdown(f"### {name} / {father_name}")
+            st.write(f"Mobile: {mobile}")
 
             col1, col2 = st.columns(2)
 
-            # ===== APPROVE =====
             with col1:
-                if st.button("✅ Approve", key=f"approve_{req_id}"):
-
-                    if not mobile.isdigit() or len(mobile) != 10:
-                        st.error("Invalid mobile number.")
-                        st.stop()
+                if st.button("Approve", key=f"approve_{req_id}"):
 
                     username = mobile
                     plain_password = mobile[-4:]
@@ -1206,44 +1195,20 @@ elif menu == "Admin Panel":
                         "created_at": datetime.utcnow()
                     })
 
-                    # 🔥 Admin Log
-                    db.collection("admin_logs").add({
-                        "action": "approved_user",
-                        "admin_id": st.session_state.get("user_id"),
-                        "target_mobile": mobile,
-                        "timestamp": datetime.utcnow()
-                    })
-
                     db.collection("registration_requests").document(req_id).delete()
-
-                    st.success(
-                        f"✅ User Approved!\nUsername: {username}\nPassword: {plain_password}"
-                    )
+                    st.success("User Approved.")
                     st.rerun()
 
-            # ===== REJECT =====
             with col2:
-                if st.button("❌ Reject", key=f"reject_{req_id}"):
-
-                    db.collection("admin_logs").add({
-                        "action": "rejected_user",
-                        "admin_id": st.session_state.get("user_id"),
-                        "target_mobile": mobile,
-                        "timestamp": datetime.utcnow()
-                    })
-
+                if st.button("Reject", key=f"reject_{req_id}"):
                     db.collection("registration_requests").document(req_id).delete()
-
                     st.warning("Registration Rejected.")
                     st.rerun()
 
             st.divider()
 
-    # =========================================================
-    # ================= USER MANAGEMENT =======================
-    # =========================================================
-
-    st.subheader("👥 All Registered Users")
+    # ================= USER MANAGEMENT =================
+    st.subheader("All Registered Users")
 
     users = list(db.collection("users").stream())
 
@@ -1254,102 +1219,36 @@ elif menu == "Admin Panel":
 
             user_data = user_doc.to_dict()
             user_id = user_doc.id
-
             name = user_data.get("name")
             father_name = user_data.get("father_name")
             mobile = user_data.get("mobile")
             role = user_data.get("role", "Member")
             is_blocked = user_data.get("is_blocked", False)
 
-            status = "Blocked ❌" if is_blocked else "Active ✅"
+            status = "Blocked" if is_blocked else "Active"
 
-            st.markdown(f"### 👤 {name} / {father_name}")
-            st.write(f"📱 Mobile: {mobile}")
-            st.write(f"🎭 Role: {role}")
-            st.write(f"📌 Status: {status}")
+            st.markdown(f"### {name} / {father_name}")
+            st.write(f"Mobile: {mobile}")
+            st.write(f"Role: {role}")
+            st.write(f"Status: {status}")
 
-            col1, col2 = st.columns(2)
+            if st.button(
+                "Unblock" if is_blocked else "Block",
+                key=f"block_{user_id}"
+            ):
 
-            # ===== BLOCK / UNBLOCK =====
-            with col1:
-                if not is_blocked:
-                    if st.button("🚫 Block User", key=f"block_{user_id}"):
+                db.collection("users").document(user_id).update({
+                    "is_blocked": not is_blocked,
+                    "updated_at": datetime.utcnow()
+                })
 
-                        db.collection("users").document(user_id).update({
-                            "is_blocked": True
-                        })
+                st.success("User status updated.")
+                st.rerun()
 
-                        db.collection("admin_logs").add({
-                            "action": "blocked_user",
-                            "admin_id": st.session_state.get("user_id"),
-                            "target_mobile": mobile,
-                            "timestamp": datetime.utcnow()
-                        })
+            st.divider()
 
-                        st.warning("User Blocked.")
-                        st.rerun()
-                else:
-                    if st.button("✅ Unblock User", key=f"unblock_{user_id}"):
-
-                        db.collection("users").document(user_id).update({
-                            "is_blocked": False
-                        })
-
-                        db.collection("admin_logs").add({
-                            "action": "unblocked_user",
-                            "admin_id": st.session_state.get("user_id"),
-                            "target_mobile": mobile,
-                            "timestamp": datetime.utcnow()
-                        })
-
-                        st.success("User Unblocked.")
-                        st.rerun()
-
-# ================= USER MANAGEMENT =================
-
-st.subheader("👥 All Users")
-
-users = list(db.collection("users").stream())
-
-for index, user in enumerate(users):
-
-    data = user.to_dict()
-    user_id = user.id
-    mobile = data.get("mobile", "")
-
-    st.markdown(f"### 👤 {data.get('name')} / {data.get('father_name')}")
-    st.write(f"📱 Mobile: {mobile}")
-    st.write(f"🎭 Role: {data.get('role')}")
-    st.write(f"📌 Status: {'Blocked' if data.get('is_blocked') else 'Active'}")
-
-    col1, col2 = st.columns(2)
-
-    # 🔒 BLOCK / UNBLOCK
-    with col1:
-        if st.button("🚫 Block / Unblock", key=f"block_{user_id}_{index}"):
-
-            new_status = not data.get("is_blocked", False)
-
-            db.collection("users").document(user_id).update({
-                "is_blocked": new_status,
-                "updated_at": datetime.utcnow()
-            })
-
-            db.collection("admin_logs").add({
-                "action": "block_unblock_user",
-                "admin_id": st.session_state.get("user_id"),
-                "target_mobile": mobile,
-                "timestamp": datetime.utcnow()
-            })
-
-            st.success("User status updated.")
-            st.rerun()
-
-    # 🔑 RESET PASSWORD
- 
-    # =========================================================
-    # ================= MEETING MANAGEMENT ====================
-    # =========================================================
+    # ================= MEETING MANAGEMENT =================
+    st.subheader("Meeting Management")
 
     meeting_ref = db.collection("admin_settings").document("meeting_options")
     meeting_doc = meeting_ref.get()
@@ -1358,32 +1257,27 @@ for index, user in enumerate(users):
     current_meeting_id = meeting_data.get("meeting_id")
     current_status = meeting_data.get("status", "Closed")
 
-    st.subheader("📌 Current Meeting Status")
-
     col1, col2 = st.columns(2)
     col1.info(f"Meeting ID: {current_meeting_id if current_meeting_id else 'Not Set'}")
     col2.info(f"Status: {current_status}")
 
     st.divider()
 
-    # ================= CREATE / UPDATE =================
-    st.subheader("🛠 Create / Update Meeting")
-
+    # Create / Activate Meeting
     with st.form("meeting_form"):
 
         new_meeting_id = st.text_input("Meeting ID")
-
         agenda_input = st.text_area("Agenda Options (comma separated)")
         date_input = st.text_area("Date Options (comma separated)")
         time_input = st.text_area("Time Options (comma separated)")
         place_input = st.text_area("Place Options (comma separated)")
 
-        submit_meeting = st.form_submit_button("💾 Save & Activate Meeting")
+        submit_meeting = st.form_submit_button("Save & Activate Meeting")
 
         if submit_meeting:
 
             if not new_meeting_id.strip():
-                st.error("⚠ Meeting ID is required.")
+                st.error("Meeting ID is required.")
             else:
                 meeting_ref.set({
                     "meeting_id": new_meeting_id.strip(),
@@ -1395,61 +1289,16 @@ for index, user in enumerate(users):
                     "created_at": datetime.utcnow()
                 })
 
-                st.success("✅ Meeting saved and activated.")
+                st.success("Meeting activated.")
                 st.rerun()
 
-    # ================= CLOSE MEETING =================
+    # Close Meeting
     if current_status == "Active":
 
         st.divider()
-        st.subheader("🔒 Finalize Meeting")
 
-        confirm_close = st.checkbox("I confirm to close this meeting")
-
-        if confirm_close and st.button("🚨 Close Current Meeting"):
-
-            votes = list(
-                db.collection("meeting_details")
-                .where("meeting_id", "==", current_meeting_id)
-                .stream()
-            )
-
-            if not votes:
-                st.error("⚠ No votes to finalize.")
-                st.stop()
-
-            agenda_count = {}
-            date_count = {}
-            time_count = {}
-            place_count = {}
-
-            for vote in votes:
-                data = vote.to_dict()
-
-                if data.get("agenda"):
-                    agenda_count[data["agenda"]] = agenda_count.get(data["agenda"], 0) + 1
-                if data.get("date"):
-                    date_count[data["date"]] = date_count.get(data["date"], 0) + 1
-                if data.get("time"):
-                    time_count[data["time"]] = time_count.get(data["time"], 0) + 1
-                if data.get("place"):
-                    place_count[data["place"]] = place_count.get(data["place"], 0) + 1
-
-            if not agenda_count or not date_count or not time_count or not place_count:
-                st.error("Incomplete vote data.")
-                st.stop()
-
-            db.collection("meeting_results").document(current_meeting_id).set({
-                "meeting_id": current_meeting_id,
-                "total_votes": len(votes),
-                "winning_agenda": max(agenda_count, key=agenda_count.get),
-                "winning_date": max(date_count, key=date_count.get),
-                "winning_time": max(time_count, key=time_count.get),
-                "winning_place": max(place_count, key=place_count.get),
-                "finalized_at": datetime.utcnow()
-            })
+        if st.checkbox("Confirm close meeting") and st.button("Close Meeting"):
 
             meeting_ref.update({"status": "Closed"})
-
-            st.success("🎉 Meeting finalized successfully.")
+            st.success("Meeting closed successfully.")
             st.rerun()
