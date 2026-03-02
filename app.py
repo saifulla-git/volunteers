@@ -1155,7 +1155,7 @@ elif menu == "Admin Panel":
         st.error("Access Denied")
         st.stop()
 
-    st.title("Admin Panel")
+    st.title("Admin Control Center")
 
     # ======================================================
     # REGISTRATION REQUESTS
@@ -1163,7 +1163,8 @@ elif menu == "Admin Panel":
 
     st.subheader("Pending Registration Requests")
 
-    requests = list(db.collection("registration_requests").stream())
+    with st.spinner("Fetching registration requests..."):
+        requests = list(db.collection("registration_requests").stream())
 
     if not requests:
         st.info("No pending requests.")
@@ -1172,13 +1173,12 @@ elif menu == "Admin Panel":
 
             data = req.to_dict()
             req_id = req.id
-
             name = data.get("name")
             father_name = data.get("father_name")
             mobile = data.get("mobile")
 
             st.markdown(f"### {name} / {father_name}")
-            st.write(f"Mobile: {mobile}")
+            st.caption(f"Mobile: {mobile}")
 
             col1, col2 = st.columns(2)
 
@@ -1186,32 +1186,44 @@ elif menu == "Admin Panel":
             with col1:
                 if st.button("Approve", key=f"approve_{req_id}"):
 
-                    password_plain = mobile[-4:]
-                    password_hash = hash_password(password_plain)
+                    try:
+                        with st.spinner("Approving user..."):
 
-                    db.collection("users").document(mobile).set({
-                        "name": name,
-                        "father_name": father_name,
-                        "mobile": mobile,
-                        "role": "Member",
-                        "password_hash": password_hash,
-                        "is_blocked": False,
-                        "created_at": datetime.utcnow()
-                    })
+                            password_plain = mobile[-4:]
+                            password_hash = hash_password(password_plain)
 
-                    db.collection("registration_requests").document(req_id).delete()
+                            db.collection("users").document(mobile).set({
+                                "name": name,
+                                "father_name": father_name,
+                                "mobile": mobile,
+                                "role": "Member",
+                                "password_hash": password_hash,
+                                "is_blocked": False,
+                                "created_at": datetime.utcnow()
+                            })
 
-                    st.success(f"User Approved. Password: {password_plain}")
-                    st.rerun()
+                            db.collection("registration_requests").document(req_id).delete()
+
+                        st.success(f"User approved successfully.")
+                        st.info(f"Temporary Password: {password_plain}")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Approval failed: {e}")
 
             # REJECT
             with col2:
                 if st.button("Reject", key=f"reject_{req_id}"):
 
-                    db.collection("registration_requests").document(req_id).delete()
+                    try:
+                        with st.spinner("Rejecting request..."):
+                            db.collection("registration_requests").document(req_id).delete()
 
-                    st.warning("Request Rejected")
-                    st.rerun()
+                        st.warning("Request rejected.")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Rejection failed: {e}")
 
             st.divider()
 
@@ -1221,7 +1233,8 @@ elif menu == "Admin Panel":
 
     st.subheader("Registered Users")
 
-    users = list(db.collection("users").stream())
+    with st.spinner("Loading users..."):
+        users = list(db.collection("users").stream())
 
     if not users:
         st.info("No users found.")
@@ -1230,28 +1243,32 @@ elif menu == "Admin Panel":
 
             user_data = user_doc.to_dict()
             user_id = user_doc.id
-
             name = user_data.get("name")
             father_name = user_data.get("father_name")
             mobile = user_data.get("mobile")
             is_blocked = user_data.get("is_blocked", False)
 
-            status = "Blocked" if is_blocked else "Active"
+            status = "🔴 Blocked" if is_blocked else "🟢 Active"
 
             st.markdown(f"### {name} / {father_name}")
-            st.write(f"Mobile: {mobile}")
+            st.caption(f"Mobile: {mobile}")
             st.write(f"Status: {status}")
 
             if st.button(
-                "Unblock" if is_blocked else "Block",
+                "Unblock User" if is_blocked else "Block User",
                 key=f"block_{user_id}"
             ):
-                db.collection("users").document(user_id).update({
-                    "is_blocked": not is_blocked
-                })
+                try:
+                    with st.spinner("Updating user status..."):
+                        db.collection("users").document(user_id).update({
+                            "is_blocked": not is_blocked
+                        })
 
-                st.success("User status updated.")
-                st.rerun()
+                    st.success("User status updated successfully.")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Status update failed: {e}")
 
             st.divider()
 
@@ -1262,9 +1279,13 @@ elif menu == "Admin Panel":
     st.subheader("Meeting Management")
 
     meeting_ref = db.collection("admin_settings").document("meeting_options")
-    meeting_doc = meeting_ref.get()
 
-    meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+    try:
+        meeting_doc = meeting_ref.get()
+        meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
+    except Exception as e:
+        st.error(f"Error loading meeting settings: {e}")
+        st.stop()
 
     current_meeting_id = meeting_data.get("meeting_id", "Not Set")
     current_status = meeting_data.get("status", "Closed")
@@ -1287,23 +1308,27 @@ elif menu == "Admin Panel":
         activate = st.form_submit_button("Activate Meeting")
 
         if activate:
-
             if not new_meeting_id.strip():
-                st.error("Meeting ID required")
-                st.stop()
+                st.error("Meeting ID required.")
+            else:
+                try:
+                    with st.spinner("Activating meeting..."):
 
-            meeting_ref.set({
-                "meeting_id": new_meeting_id.strip(),
-                "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                "status": "Active",
-                "created_at": datetime.utcnow()
-            })
+                        meeting_ref.set({
+                            "meeting_id": new_meeting_id.strip(),
+                            "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                            "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                            "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                            "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                            "status": "Active",
+                            "created_at": datetime.utcnow()
+                        })
 
-            st.success("Meeting Activated")
-            st.rerun()
+                    st.success("Meeting activated successfully.")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Meeting activation failed: {e}")
 
     # CLOSE MEETING
     if current_status == "Active":
@@ -1311,9 +1336,14 @@ elif menu == "Admin Panel":
         st.divider()
 
         if st.button("Close Meeting"):
-            meeting_ref.update({
-                "status": "Closed"
-            })
+            try:
+                with st.spinner("Closing meeting..."):
+                    meeting_ref.update({
+                        "status": "Closed"
+                    })
 
-            st.success("Meeting Closed")
-            st.rerun()
+                st.success("Meeting closed successfully.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Failed to close meeting: {e}")
