@@ -1117,88 +1117,79 @@ elif menu == "Reports":
             st.divider()
 #------admin panel-----#
 #-------a--------------#
+# ================= ADMIN PANEL =================
 elif menu == "Admin Panel":
 
+    # 🔒 Security Check
     if st.session_state.get("role") != "Admin":
-        st.error("⛔ Access Denied")
+        st.error("Access Denied")
         st.stop()
 
     st.title("Admin Panel")
 
-    # ================= REGISTRATION REQUESTS =================
-    st.subheader("Registration Requests")
+    # ======================================================
+    # REGISTRATION REQUESTS
+    # ======================================================
+
+    st.subheader("Pending Registration Requests")
 
     requests = list(db.collection("registration_requests").stream())
 
     if not requests:
-        st.info("No pending registration requests.")
+        st.info("No pending requests.")
     else:
         for req in requests:
 
             data = req.to_dict()
             req_id = req.id
+
             name = data.get("name")
             father_name = data.get("father_name")
             mobile = data.get("mobile")
 
-            if not mobile:
-                continue
-
-            existing_user = list(
-                db.collection("users")
-                .where("mobile", "==", mobile)
-                .stream()
-            )
-
-            if existing_user:
-                db.collection("registration_requests").document(req_id).delete()
-                continue
-
             st.markdown(f"### {name} / {father_name}")
             st.write(f"Mobile: {mobile}")
 
-            with st.form(f"approval_form_{req_id}"):
+            col1, col2 = st.columns(2)
 
-                col1, col2 = st.columns(2)
-                approve = col1.form_submit_button("Approve")
-                reject = col2.form_submit_button("Reject")
+            # APPROVE
+            with col1:
+                if st.button("Approve", key=f"approve_{req_id}"):
 
-                if approve:
-                    try:
-                        username = mobile
-                        plain_password = mobile[-4:]
-                        hashed_password = hash_password(plain_password)
+                    password_plain = mobile[-4:]
+                    password_hash = hash_password(password_plain)
 
-                        db.collection("users").document(username).set({
-                            "name": name,
-                            "father_name": father_name,
-                            "mobile": mobile,
-                            "role": "Member",
-                            "password_hash": hashed_password,
-                            "is_approved": True,
-                            "is_blocked": False,
-                            "created_at": datetime.utcnow()
-                        })
+                    db.collection("users").document(mobile).set({
+                        "name": name,
+                        "father_name": father_name,
+                        "mobile": mobile,
+                        "role": "Member",
+                        "password_hash": password_hash,
+                        "is_blocked": False,
+                        "created_at": datetime.utcnow()
+                    })
 
-                        db.collection("registration_requests").document(req_id).delete()
-                        st.success("User Approved.")
-                        st.rerun()
+                    db.collection("registration_requests").document(req_id).delete()
 
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                    st.success(f"User Approved. Password: {password_plain}")
+                    st.rerun()
 
-                if reject:
-                    try:
-                        db.collection("registration_requests").document(req_id).delete()
-                        st.warning("Registration Rejected.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+            # REJECT
+            with col2:
+                if st.button("Reject", key=f"reject_{req_id}"):
+
+                    db.collection("registration_requests").document(req_id).delete()
+
+                    st.warning("Request Rejected")
+                    st.rerun()
 
             st.divider()
 
-    # ================= USER MANAGEMENT =================
-    st.subheader("All Registered Users")
+    # ======================================================
+    # USER MANAGEMENT
+    # ======================================================
+
+    st.subheader("Registered Users")
 
     users = list(db.collection("users").stream())
 
@@ -1209,56 +1200,53 @@ elif menu == "Admin Panel":
 
             user_data = user_doc.to_dict()
             user_id = user_doc.id
+
             name = user_data.get("name")
             father_name = user_data.get("father_name")
             mobile = user_data.get("mobile")
-            role = user_data.get("role", "Member")
             is_blocked = user_data.get("is_blocked", False)
 
             status = "Blocked" if is_blocked else "Active"
 
             st.markdown(f"### {name} / {father_name}")
             st.write(f"Mobile: {mobile}")
-            st.write(f"Role: {role}")
             st.write(f"Status: {status}")
 
-            with st.form(f"block_form_{user_id}"):
+            if st.button(
+                "Unblock" if is_blocked else "Block",
+                key=f"block_{user_id}"
+            ):
+                db.collection("users").document(user_id).update({
+                    "is_blocked": not is_blocked
+                })
 
-                toggle = st.form_submit_button(
-                    "Unblock" if is_blocked else "Block"
-                )
-
-                if toggle:
-                    try:
-                        db.collection("users").document(user_id).update({
-                            "is_blocked": not is_blocked,
-                            "updated_at": datetime.utcnow()
-                        })
-                        st.success("User status updated.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                st.success("User status updated.")
+                st.rerun()
 
             st.divider()
 
-    # ================= MEETING MANAGEMENT =================
+    # ======================================================
+    # MEETING MANAGEMENT
+    # ======================================================
+
     st.subheader("Meeting Management")
 
     meeting_ref = db.collection("admin_settings").document("meeting_options")
     meeting_doc = meeting_ref.get()
+
     meeting_data = meeting_doc.to_dict() if meeting_doc.exists else {}
 
-    current_meeting_id = meeting_data.get("meeting_id")
+    current_meeting_id = meeting_data.get("meeting_id", "Not Set")
     current_status = meeting_data.get("status", "Closed")
 
     col1, col2 = st.columns(2)
-    col1.info(f"Meeting ID: {current_meeting_id if current_meeting_id else 'Not Set'}")
+    col1.info(f"Meeting ID: {current_meeting_id}")
     col2.info(f"Status: {current_status}")
 
     st.divider()
 
-    # Activate / Update Meeting
-    with st.form("meeting_form"):
+    # CREATE / ACTIVATE MEETING
+    with st.form("create_meeting_form"):
 
         new_meeting_id = st.text_input("Meeting ID")
         agenda_input = st.text_area("Agenda Options (comma separated)")
@@ -1266,39 +1254,36 @@ elif menu == "Admin Panel":
         time_input = st.text_area("Time Options (comma separated)")
         place_input = st.text_area("Place Options (comma separated)")
 
-        submit_meeting = st.form_submit_button("Save & Activate Meeting")
+        activate = st.form_submit_button("Activate Meeting")
 
-        if submit_meeting:
-            try:
-                if not new_meeting_id.strip():
-                    st.error("Meeting ID is required.")
-                else:
-                    meeting_ref.set({
-                        "meeting_id": new_meeting_id.strip(),
-                        "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                        "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                        "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                        "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                        "status": "Active",
-                        "created_at": datetime.utcnow()
-                    })
-                    st.success("Meeting activated.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
+        if activate:
 
-    # Close Meeting
+            if not new_meeting_id.strip():
+                st.error("Meeting ID required")
+                st.stop()
+
+            meeting_ref.set({
+                "meeting_id": new_meeting_id.strip(),
+                "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                "status": "Active",
+                "created_at": datetime.utcnow()
+            })
+
+            st.success("Meeting Activated")
+            st.rerun()
+
+    # CLOSE MEETING
     if current_status == "Active":
 
-        with st.form("close_meeting_form"):
+        st.divider()
 
-            confirm_close = st.checkbox("Confirm close meeting")
-            close_btn = st.form_submit_button("Close Meeting")
+        if st.button("Close Meeting"):
+            meeting_ref.update({
+                "status": "Closed"
+            })
 
-            if confirm_close and close_btn:
-                try:
-                    meeting_ref.update({"status": "Closed"})
-                    st.success("Meeting closed successfully.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            st.success("Meeting Closed")
+            st.rerun()
