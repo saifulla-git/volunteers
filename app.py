@@ -14,54 +14,90 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ---------------- GLOBAL PROFESSIONAL THEME ----------------
 st.markdown("""
 <style>
 
+/* Import Professional Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Inter', sans-serif;
+}
+
 /* Main background */
 .main {
-    background-color: #f8fafc;
+    background-color: #f3f6fb;
 }
 
-/* Sidebar styling */
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #111827;
+    background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
 }
 [data-testid="stSidebar"] * {
-    color: white !important;
-    font-size: 15px;
+    color: #f9fafb !important;
 }
 
-/* Reduce top padding */
+/* Container spacing */
 .block-container {
-    padding-top: 1.5rem;
+    padding-top: 2rem;
     padding-bottom: 2rem;
+}
+
+/* Card effect for forms & containers */
+div[data-testid="stVerticalBlock"] > div:has(div.stContainer) {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
 }
 
 /* Buttons */
 .stButton>button {
-    border-radius: 10px;
-    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
     font-weight: 600;
+    border: none;
+    background-color: #2563eb;
+    color: white;
+    transition: all 0.2s ease-in-out;
+}
+
+.stButton>button:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
 }
 
 /* Inputs */
 .stTextInput>div>div>input,
-.stTextArea textarea {
-    border-radius: 8px;
+.stTextArea textarea,
+.stSelectbox>div>div {
+    border-radius: 8px !important;
+    border: 1px solid #e5e7eb !important;
 }
 
 /* Metrics */
 [data-testid="metric-container"] {
     background-color: white;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    padding: 18px;
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+/* Success / Warning / Error polish */
+.stAlert-success {
+    border-radius: 10px;
+}
+
+.stAlert-error {
+    border-radius: 10px;
+}
+
+.stAlert-warning {
+    border-radius: 10px;
 }
 
 </style>
 """, unsafe_allow_html=True)
-
 # ---------------- FIREBASE INIT ----------------
 if not firebase_admin._apps:
     cred = credentials.Certificate({
