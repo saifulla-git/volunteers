@@ -1212,34 +1212,15 @@ elif menu == "Admin Panel":
             col1, col2 = st.columns(2)
 
             # APPROVE
-            with col1:
-    if st.button("Approve", key=f"approve_{req_id}"):
-
-        try:
-            with st.spinner("Approving user..."):
-
-                password_plain = mobile[-4:]
-                password_hash = hash_password(password_plain)
-
-                db.collection("users").document(mobile).set({
-                    "name": name,
-                    "father_name": father_name,
-                    "mobile": mobile,
-                    "role": "Member",
-                    "password_hash": password_hash,
-                    "is_blocked": False,
-                    "is_approved": True,  # ✅ Important Fix
-                    "created_at": datetime.utcnow()
-                })
-
-                db.collection("registration_requests").document(req_id).delete()
-
-            st.success("User approved successfully.")
-            st.info(f"Temporary Password: {password_plain}")
-            st.rerun()
-
-        except Exception as e:
-            st.error(f"Approval failed: {e}")
+      if st.button("Force Test Registration Write"):
+    db.collection("registration_requests").add({
+        "name": "Test User",
+        "father_name": "Test Father",
+        "mobile": "9999999999",
+        "status": "pending",
+        "requested_at": datetime.utcnow()
+    })
+    st.success("Test registration created")
             # REJECT
             with col2:
                 if st.button("Reject", key=f"reject_{req_id}"):
