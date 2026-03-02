@@ -1220,15 +1220,16 @@ elif menu == "Admin Panel":
                             password_plain = mobile[-4:]
                             password_hash = hash_password(password_plain)
 
-                            db.collection("users").document(mobile).set({
-                                "name": name,
-                                "father_name": father_name,
-                                "mobile": mobile,
-                                "role": "Member",
-                                "password_hash": password_hash,
-                                "is_blocked": False,
-                                "created_at": datetime.utcnow()
-                            })
+                           db.collection("users").document(mobile).set({
+    "name": name,
+    "father_name": father_name,
+    "mobile": mobile,
+    "role": "Member",
+    "password_hash": password_hash,
+    "is_blocked": False,
+    "is_approved": True,   # 🔥 ADD THIS
+    "created_at": datetime.utcnow()
+})
 
                             db.collection("registration_requests").document(req_id).delete()
 
