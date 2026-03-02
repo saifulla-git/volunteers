@@ -159,32 +159,38 @@ with st.sidebar:
 # ---------------- PUBLIC NOTICE BOARD ----------------
 if menu == "Public Notice Board":
 
-    st.title("📢 Public Notice Board")
+    st.title("Public Notice Board")
+    st.markdown("Stay updated with latest announcements and discussions.")
+    st.divider()
 
-    # ---------------- POST NOTICE (ALL USERS) ----------------
-    st.subheader("📝 Post New Notice")
+    # ================= POST NOTICE =================
+    with st.container(border=True):
 
-    if st.session_state.get("logged_in"):
-        auto_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
-    else:
-        auto_name = st.text_input("Your Name")
+        st.subheader("Post New Notice")
 
-    notice_text = st.text_area("Write Notice")
+        if st.session_state.get("logged_in"):
+            auto_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
+        else:
+            auto_name = st.text_input("Your Name")
 
-    if st.button("Post Notice"):
-        if notice_text.strip() != "" and auto_name.strip() != "":
-            db.collection("notices").add({
-                "notice": notice_text.strip(),
-                "name_father": auto_name,
-                "posted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "is_pinned": False
-            })
-            st.success("Notice Posted.")
-            st.rerun()
+        notice_text = st.text_area("Write Notice", height=100)
+
+        if st.button("Post Notice", use_container_width=True):
+            if notice_text.strip() == "" or auto_name.strip() == "":
+                st.warning("Name and notice text are required.")
+            else:
+                db.collection("notices").add({
+                    "notice": notice_text.strip(),
+                    "name_father": auto_name,
+                    "posted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "is_pinned": False
+                })
+                st.success("Notice posted successfully.")
+                st.rerun()
 
     st.divider()
 
-    # ---------------- FETCH NOTICES ----------------
+    # ================= FETCH & DISPLAY =================
     notices = db.collection("notices").stream()
     notice_list = []
 
@@ -193,7 +199,6 @@ if menu == "Public Notice Board":
         data["doc_id"] = notice_doc.id
         notice_list.append(data)
 
-    # Sort: pinned first, newest first
     notice_list = sorted(
         notice_list,
         key=lambda x: (
@@ -203,7 +208,7 @@ if menu == "Public Notice Board":
         reverse=True
     )
 
-    if len(notice_list) == 0:
+    if not notice_list:
         st.info("No notices available.")
     else:
         for data in notice_list:
@@ -214,82 +219,92 @@ if menu == "Public Notice Board":
             posted_at = data.get("posted_at", "")
             is_pinned = data.get("is_pinned", False)
 
-            # Show pinned label
-            if is_pinned:
-                st.markdown("## 📌 Pinned Notice")
+            with st.container(border=True):
 
-            st.markdown(f"### 🗞 {notice_text}")
-            st.caption(f"Posted by: {name_father} | {posted_at}")
+                header_col1, header_col2 = st.columns([4,1])
 
-            # ---------------- PIN (ALL USERS) ----------------
-            col1, col2, col3 = st.columns(3)
+                with header_col1:
+                    if is_pinned:
+                        st.markdown("**Pinned Notice**")
+                    st.markdown(f"### {notice_text}")
+                    st.caption(f"Posted by {name_father} • {posted_at}")
 
-            with col1:
-                if st.button(f"Toggle Pin {notice_id}"):
-                    db.collection("notices").document(notice_id).update({
-                        "is_pinned": not is_pinned
-                    })
-                    st.rerun()
-
-            # ---------------- EDIT (ADMIN ONLY) ----------------
-            if st.session_state.get("role") == "Admin":
-                with col2:
-                    new_text = st.text_input(f"Edit Notice {notice_id}", value=notice_text)
-                    if st.button(f"Save Edit {notice_id}"):
+                with header_col2:
+                    if st.button("Pin / Unpin", key=f"pin_{notice_id}"):
                         db.collection("notices").document(notice_id).update({
-                            "notice": new_text.strip()
+                            "is_pinned": not is_pinned
                         })
-                        st.success("Notice Updated.")
                         st.rerun()
 
-                # ---------------- DELETE (ADMIN ONLY) ----------------
-                with col3:
-                    if st.button(f"Delete {notice_id}"):
-                        db.collection("notices").document(notice_id).delete()
-                        st.success("Notice Deleted.")
-                        st.rerun()
+                # -------- ADMIN ACTIONS --------
+                if st.session_state.get("role") == "Admin":
 
-            st.divider()
+                    st.markdown("#### Manage Notice")
+                    edit_col1, edit_col2 = st.columns(2)
 
-            # ---------------- COMMENTS ----------------
-            st.subheader("💬 Comments")
+                    with edit_col1:
+                        new_text = st.text_input(
+                            "Edit Notice",
+                            value=notice_text,
+                            key=f"edit_{notice_id}"
+                        )
+                        if st.button("Save", key=f"save_{notice_id}"):
+                            db.collection("notices").document(notice_id).update({
+                                "notice": new_text.strip()
+                            })
+                            st.success("Notice updated.")
+                            st.rerun()
 
-            comments = db.collection("notices") \
-                .document(notice_id) \
-                .collection("comments") \
-                .stream()
+                    with edit_col2:
+                        if st.button("Delete", key=f"delete_{notice_id}"):
+                            db.collection("notices").document(notice_id).delete()
+                            st.success("Notice deleted.")
+                            st.rerun()
 
-            for c in comments:
-                comment_data = c.to_dict()
-                st.write(f"**{comment_data.get('name_father','User')}**")
-                st.write(comment_data.get("comment",""))
-                st.caption(comment_data.get("commented_at",""))
                 st.divider()
 
-            # ---------------- ADD COMMENT (ALL USERS) ----------------
-            if st.session_state.get("logged_in"):
-                comment_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
-            else:
-                comment_name = st.text_input(f"Your Name {notice_id}")
+                # ================= COMMENTS =================
+                st.subheader("Comments")
 
-            comment_text = st.text_input(f"Add Comment {notice_id}")
+                comments = db.collection("notices") \
+                    .document(notice_id) \
+                    .collection("comments") \
+                    .stream()
 
-            if st.button(f"Comment {notice_id}"):
+                for c in comments:
+                    comment_data = c.to_dict()
+                    with st.container():
+                        st.markdown(f"**{comment_data.get('name_father','User')}**")
+                        st.write(comment_data.get("comment",""))
+                        st.caption(comment_data.get("commented_at",""))
+                        st.markdown("---")
 
-                if comment_text.strip() != "" and comment_name.strip() != "":
-                    db.collection("notices") \
-                        .document(notice_id) \
-                        .collection("comments") \
-                        .add({
-                            "name_father": comment_name,
-                            "comment": comment_text.strip(),
-                            "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        })
+                # -------- ADD COMMENT --------
+                if st.session_state.get("logged_in"):
+                    comment_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
+                else:
+                    comment_name = st.text_input("Your Name", key=f"name_{notice_id}")
 
-                    st.success("Comment Added.")
-                    st.rerun()
+                comment_text = st.text_input("Add Comment", key=f"comment_{notice_id}")
 
-            st.markdown("---")
+                if st.button("Submit Comment", key=f"submit_{notice_id}"):
+
+                    if comment_text.strip() == "" or comment_name.strip() == "":
+                        st.warning("Name and comment are required.")
+                    else:
+                        db.collection("notices") \
+                            .document(notice_id) \
+                            .collection("comments") \
+                            .add({
+                                "name_father": comment_name,
+                                "comment": comment_text.strip(),
+                                "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                            })
+
+                        st.success("Comment added.")
+                        st.rerun()
+
+            st.markdown(" ")
 # ---------------- LOGIN ----------------
 elif menu == "Login":
 
