@@ -364,7 +364,7 @@ elif menu == "Login":
     st.divider()
 
     # ================= LOGIN CARD =================
-    with st.container(border=True):
+    with st.container(border=True):   # ← colon added here
 
         st.subheader("Login")
 
