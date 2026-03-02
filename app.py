@@ -1357,3 +1357,12 @@ elif menu == "Admin Panel":
 
             except Exception as e:
                 st.error(f"Failed to close meeting: {e}")
+    if st.button("🔥 Force Registration Write Test"):
+    db.collection("registration_requests").add({
+        "name": "Debug User",
+        "father_name": "Debug Father",
+        "mobile": "9999999999",
+        "status": "pending",
+        "requested_at": datetime.utcnow()
+    })
+    st.success("Test registration created.")
