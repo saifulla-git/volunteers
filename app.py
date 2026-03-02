@@ -447,183 +447,57 @@ elif menu == "Login":
                 st.success("Registration submitted. Await admin approval.")
                 st.rerun()
 #================= MEETING MANAGEMENT =================#
-elif menu == "Meetings":
+if meeting_status == "Active":
 
-    import pandas as pd
-    from datetime import datetime, timedelta
+    st.divider()
 
-    st.title("📅 Meetings")
+    # ================= ATTENDANCE (Logged Users Only) =================
+    if st.session_state.get("logged_in"):
 
-    # ================= GET CURRENT MEETING =================
-    meeting_doc = db.collection("admin_settings").document("meeting_options").get()
+        with st.container(border=True):
 
-    if not meeting_doc.exists:
-        st.error("No meeting configured.")
-        st.stop()
+            st.subheader("Submit Attendance")
 
-    meeting_data = meeting_doc.to_dict()
-    meeting_id = meeting_data.get("meeting_id")
-    meeting_status = meeting_data.get("status", "Closed")
-
-    st.subheader("🟢 Current Meeting")
-    st.info(f"Meeting ID: {meeting_id}")
-    st.info(f"Status: {meeting_status}")
-
-    # =========================================================
-    # ================= ACTIVE MEETING ========================
-    # =========================================================
-
-    if meeting_status == "Active":
-
-        st.divider()
-        st.subheader("📝 Submit Attendance")
-
-        # -------- USER INFO --------
-        if st.session_state.get("logged_in"):
             auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
             user_id = st.session_state.get("user_id")
 
             st.text_input("Your Name", value=auto_name, disabled=True)
             clean_name = auto_name.strip().lower()
 
-        else:
-            user_id = "public"
-            name_input = st.text_input("Your Name")
-            clean_name = name_input.strip().lower()
+            with st.form("attendance_form"):
+                attending = st.radio("Will You Attend?", ["Yes", "No"])
+                reason = st.text_area("Reason (Required if No)")
+                submit = st.form_submit_button("Submit Attendance")
 
-        # -------- FORM --------
-        with st.form("attendance_form"):
+            if submit:
 
-            attending = st.radio("Will You Attend?", ["Yes", "No"])
-            reason = st.text_area("Reason (Required if No)")
-            submit = st.form_submit_button("Submit Attendance")
+                if attending == "No" and reason.strip() == "":
+                    st.warning("Reason is required if not attending.")
+                    st.stop()
 
-        if submit:
+                existing = db.collection("attendance_details") \
+                    .where("meeting_id", "==", meeting_id) \
+                    .where("user_id", "==", user_id) \
+                    .stream()
 
-            if clean_name == "":
-                st.warning("Name is required.")
-                st.stop()
+                if list(existing):
+                    st.error("Attendance already submitted.")
+                    st.stop()
 
-            if attending == "No" and reason.strip() == "":
-                st.warning("Reason is required if not attending.")
-                st.stop()
+                db.collection("attendance_details").add({
+                    "meeting_id": meeting_id,
+                    "name": clean_name,
+                    "user_id": user_id,
+                    "attending": attending,
+                    "reason": reason.strip() if attending == "No" else "",
+                    "submitted_at": datetime.utcnow()
+                })
 
-            # -------- DUPLICATE CHECK --------
-            existing = db.collection("attendance_details") \
-                .where("meeting_id", "==", meeting_id) \
-                .where("user_id", "==", user_id) \
-                .stream()
-
-            if list(existing):
-                st.error("Attendance already submitted.")
-                st.stop()
-
-            # -------- SAVE --------
-            db.collection("attendance_details").add({
-                "meeting_id": meeting_id,
-                "name": clean_name,
-                "user_id": user_id,
-                "attending": attending,
-                "reason": reason.strip() if attending == "No" else "",
-                "submitted_at": datetime.utcnow()
-            })
-
-            st.success("Attendance recorded successfully.")
-            st.rerun()
+                st.success("Attendance recorded successfully.")
+                st.rerun()
 
     else:
-        st.warning("Meeting is closed. Attendance disabled.")
-
-    # =========================================================
-    # ================= ARCHIVE SECTION =======================
-    # =========================================================
-
-    st.divider()
-    st.subheader("📂 Meeting Archive (Last 3 Months)")
-
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-
-    archive_docs = db.collection("meeting_results").stream()
-    archive_list = []
-
-    for doc in archive_docs:
-        data = doc.to_dict()
-        finalized_at = data.get("finalized_at")
-
-        if finalized_at:
-            if isinstance(finalized_at, datetime):
-                if finalized_at >= three_months_ago:
-                    archive_list.append(data)
-
-    if not archive_list:
-        st.info("No archived meetings in last 3 months.")
-        st.stop()
-
-    meeting_ids = [m.get("meeting_id") for m in archive_list]
-
-    selected_id = st.selectbox("Select Meeting ID", meeting_ids)
-
-    archive_doc = db.collection("meeting_results").document(selected_id).get()
-
-    if not archive_doc.exists:
-        st.warning("No data found.")
-        st.stop()
-
-    archive_data = archive_doc.to_dict()
-
-    # ================= FINAL RESULTS =================
-    st.divider()
-    st.subheader("🏆 Final Results")
-
-    st.write(f"Total Votes: {archive_data.get('total_votes', 0)}")
-    st.write(f"Winning Agenda: {archive_data.get('winning_agenda')}")
-    st.write(f"Winning Date: {archive_data.get('winning_date')}")
-    st.write(f"Winning Time: {archive_data.get('winning_time')}")
-    st.write(f"Winning Place: {archive_data.get('winning_place')}")
-
-    # ================= ATTENDANCE ANALYTICS =================
-    st.divider()
-    st.subheader("📊 Attendance Analytics")
-
-    attendance_docs = db.collection("attendance_details") \
-        .where("meeting_id", "==", selected_id) \
-        .stream()
-
-    attendance_list = []
-    total_present = 0
-    total_absent = 0
-
-    for doc in attendance_docs:
-        att = doc.to_dict()
-        attendance_list.append(att)
-
-        if att.get("attending") == "Yes":
-            total_present += 1
-        else:
-            total_absent += 1
-
-    total = total_present + total_absent
-
-    if total > 0:
-
-        col1, col2 = st.columns(2)
-        col1.metric("Present", total_present)
-        col2.metric("Absent", total_absent)
-
-        df = pd.DataFrame(attendance_list)
-        st.dataframe(df, use_container_width=True)
-
-        csv = df.to_csv(index=False).encode("utf-8")
-
-        st.download_button(
-            "⬇ Download Attendance CSV",
-            csv,
-            file_name=f"{selected_id}_attendance.csv",
-            mime="text/csv"
-        )
-
-    else:
-        st.info("No attendance data found.")
+        st.info("Login required to submit attendance.")
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
