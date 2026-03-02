@@ -1296,10 +1296,9 @@ elif menu == "Admin Panel":
                     key=f"block_{user_id}"
                 ):
                     try:
-                        with st.spinner("Updating user status..."):
-                            db.collection("users").document(user_id).update({
-                                "is_blocked": not is_blocked
-                            })
+                        db.collection("users").document(user_id).update({
+                            "is_blocked": not is_blocked
+                        })
 
                         st.success("User status updated successfully.")
                         st.rerun()
@@ -1307,7 +1306,7 @@ elif menu == "Admin Panel":
                     except Exception as e:
                         st.error(f"Status update failed: {e}")
 
-            # RESET PASSWORD
+            # RESET PASSWORD (ADMIN RESET)
             with col2:
                 if st.button("Reset Password", key=f"reset_{user_id}"):
 
@@ -1320,7 +1319,7 @@ elif menu == "Admin Panel":
                             "must_change_password": True
                         })
 
-                        st.success("Password reset to last 4 digits.")
+                        st.success("Password reset to last 4 digits. User must change password on next login.")
 
                     except Exception as e:
                         st.error(f"Password reset failed: {e}")
@@ -1366,17 +1365,15 @@ elif menu == "Admin Panel":
                 st.error("Meeting ID required.")
             else:
                 try:
-                    with st.spinner("Activating meeting..."):
-
-                        meeting_ref.set({
-                            "meeting_id": new_meeting_id.strip(),
-                            "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                            "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                            "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                            "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                            "status": "Active",
-                            "created_at": datetime.utcnow()
-                        })
+                    meeting_ref.set({
+                        "meeting_id": new_meeting_id.strip(),
+                        "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                        "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                        "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                        "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                        "status": "Active",
+                        "created_at": datetime.utcnow()
+                    })
 
                     st.success("Meeting activated successfully.")
                     st.rerun()
@@ -1390,9 +1387,7 @@ elif menu == "Admin Panel":
 
         if st.button("Close Meeting"):
             try:
-                with st.spinner("Closing meeting..."):
-                    meeting_ref.update({"status": "Closed"})
-
+                meeting_ref.update({"status": "Closed"})
                 st.success("Meeting closed successfully.")
                 st.rerun()
 
