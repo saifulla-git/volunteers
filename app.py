@@ -445,42 +445,42 @@ elif menu == "Login":
     st.divider()
 
     # ================= REGISTRATION CARD =================
-  with st.container(border=True):
+                  with st.container(border=True):
 
-    st.subheader("New Registration")
+        st.subheader("New Registration")
 
-    with st.form("registration_form"):
+        with st.form("registration_form"):
 
-        reg_name = st.text_input("Full Name")
-        reg_father = st.text_input("Father Name")
-        reg_mobile = st.text_input("Mobile Number (10 digits)")
+            reg_name = st.text_input("Full Name")
+            reg_father = st.text_input("Father Name")
+            reg_mobile = st.text_input("Mobile Number (10 digits)")
 
-        reg_submit = st.form_submit_button("Submit Registration")
+            reg_submit = st.form_submit_button("Submit Registration")
 
-        if reg_submit:
+            if reg_submit:
 
-            reg_name = reg_name.strip()
-            reg_father = reg_father.strip()
-            reg_mobile = reg_mobile.strip()
+                reg_name = reg_name.strip()
+                reg_father = reg_father.strip()
+                reg_mobile = reg_mobile.strip()
 
-            if not reg_name or not reg_father or not reg_mobile:
-                st.warning("All fields are required.")
-                st.stop()
+                if not reg_name or not reg_father or not reg_mobile:
+                    st.warning("All fields are required.")
+                    st.stop()
 
-            if not reg_mobile.isdigit() or len(reg_mobile) != 10:
-                st.error("Mobile number must be exactly 10 digits.")
-                st.stop()
+                if not reg_mobile.isdigit() or len(reg_mobile) != 10:
+                    st.error("Mobile number must be exactly 10 digits.")
+                    st.stop()
 
-            db.collection("registration_requests").add({
-                "name": reg_name,
-                "father_name": reg_father,
-                "mobile": reg_mobile,
-                "status": "pending",
-                "requested_at": datetime.utcnow()
-            })
+                db.collection("registration_requests").add({
+                    "name": reg_name,
+                    "father_name": reg_father,
+                    "mobile": reg_mobile,
+                    "status": "pending",
+                    "requested_at": datetime.utcnow()
+                })
 
-            st.success("Registration submitted.")
-            st.rerun()
+                st.success("Registration submitted successfully.")
+                st.rerun()
             # Check existing user
             existing_user = list(
                 db.collection("users")
