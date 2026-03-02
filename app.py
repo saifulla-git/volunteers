@@ -371,7 +371,9 @@ elif menu == "Login":
         mobile = st.text_input("Mobile Number")
         password = st.text_input("Password", type="password")
 
-        if st.button("Login", use_container_width=True):
+        login_clicked = st.button("Login", use_container_width=True)
+
+        if login_clicked:
 
             user = get_user_by_mobile(mobile.strip())
 
@@ -384,27 +386,19 @@ elif menu == "Login":
             elif user.get("is_blocked", False):
                 st.error("Your account is blocked.")
 
-            elif check_password(password, user.get("password_hash")):
-
-                if user.get("must_change_password", False):
-                    st.session_state.force_password_change = True
-                    st.session_state.temp_user_id = user.get("id")
-                    st.warning("Password change required.")
-                    st.rerun()
-
-                else:
-                    st.session_state.logged_in = True
-                    st.session_state.role = user.get("role")
-                    st.session_state.user_id = user.get("id")
-                    st.session_state.name = user.get("name")
-                    st.session_state.father_name = user.get("father_name")
-
-                    st.success("Login successful.")
-                    st.rerun()
-
-            else:
+            elif not check_password(password, user.get("password_hash")):
                 st.error("Incorrect password.")
 
+            else:
+                # Successful login
+                st.session_state.logged_in = True
+                st.session_state.role = user.get("role")
+                st.session_state.user_id = user.get("mobile")
+                st.session_state.name = user.get("name")
+                st.session_state.father_name = user.get("father_name")
+
+                st.success("Login successful.")
+                st.rerun()
     # ================= FORCE PASSWORD CHANGE =================
     if st.session_state.get("force_password_change"):
 
