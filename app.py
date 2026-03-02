@@ -1302,3 +1302,9 @@ elif menu == "Admin Panel":
             meeting_ref.update({"status": "Closed"})
             st.success("Meeting closed successfully.")
             st.rerun()
+    if st.button("TEST WRITE"):
+    db.collection("test_collection").add({
+        "test": "working",
+        "time": datetime.utcnow()
+    })
+    st.success("Write Successful")
