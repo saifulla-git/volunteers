@@ -6,13 +6,59 @@ from datetime import datetime
 import bcrypt
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="Volunteer Portal", layout="wide")
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(
+    page_title="Volunteer Portal",
+    page_icon="🤝",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# ---------------- GLOBAL PROFESSIONAL THEME ----------------
 st.markdown("""
 <style>
-[data-testid="stSidebar"] { font-weight: 600; font-size: 16px; }
-.block-container { padding-top: 1rem; }
-.stButton>button { border-radius: 8px; }
+
+/* Main background */
+.main {
+    background-color: #f8fafc;
+}
+
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background-color: #111827;
+}
+[data-testid="stSidebar"] * {
+    color: white !important;
+    font-size: 15px;
+}
+
+/* Reduce top padding */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+/* Buttons */
+.stButton>button {
+    border-radius: 10px;
+    padding: 0.4rem 1rem;
+    font-weight: 600;
+}
+
+/* Inputs */
+.stTextInput>div>div>input,
+.stTextArea textarea {
+    border-radius: 8px;
+}
+
+/* Metrics */
+[data-testid="metric-container"] {
+    background-color: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
 </style>
 """, unsafe_allow_html=True)
 
