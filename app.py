@@ -606,94 +606,76 @@ elif menu == "Teams":
         data = r.to_dict()
         st.write(f"👤 {data.get('name')} — {data.get('details')}")
 # ---------------- MEETINGS ----------------
+# ---------------- MEETINGS ----------------
 elif menu == "Meetings":
 
-    st.title("📅 Meeting Attendance")
+    st.title("Meeting Attendance")
 
     # 🔍 Get current meeting
-    doc = db.collection("admin_settings").document("meeting_options").get()
+    meeting_ref = db.collection("admin_settings").document("meeting_options")
+    meeting_doc = meeting_ref.get()
 
-    if not doc.exists:
-        st.error("No active meeting found.")
+    if not meeting_doc.exists:
+        st.error("No meeting configured by admin.")
         st.stop()
 
-    data = doc.to_dict()
-    meeting_id = data.get("meeting_id")
-    meeting_status = data.get("status", "Closed")
+    meeting_data = meeting_doc.to_dict()
+    meeting_id = meeting_data.get("meeting_id")
+    meeting_status = meeting_data.get("status", "Closed")
 
-    st.info(f"Current Meeting ID: {meeting_id}")
+    st.info(f"Meeting ID: {meeting_id}")
     st.info(f"Status: {meeting_status}")
 
-    # 🚫 Block attendance if meeting closed
+    st.divider()
+
+    # 🚫 Block attendance if closed
     if meeting_status != "Active":
         st.warning("Meeting is closed. Attendance disabled.")
         st.stop()
 
-    # ================= NAME AUTO FILL =================
-    if st.session_state.get("logged_in"):
+    # ================= ATTENDANCE =================
+    if not st.session_state.get("logged_in"):
+        st.info("Login required to submit attendance.")
+        st.stop()
 
-        auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
-        user_id = st.session_state.get("user_id")
+    auto_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
+    user_id = st.session_state.get("user_id")
+    clean_name = auto_name.strip().lower()
 
-        st.text_input(
-            "Your Name",
-            value=auto_name,
-            disabled=True
-        )
+    st.text_input("Your Name", value=auto_name, disabled=True)
 
-        clean_name = auto_name.lower()
-
-    else:
-        user_id = "public"
-        name_input = st.text_input("Your Name")
-        clean_name = name_input.strip().lower()
-
-    # ================= FORM =================
     with st.form("attendance_form"):
 
         attending = st.radio("Will You Attend?", ["Yes", "No"])
-        reason = st.text_area("Reason (if No)")
-
-        submit = st.form_submit_button("Submit")
+        reason = st.text_area("Reason (Required if No)")
+        submit = st.form_submit_button("Submit Attendance")
 
         if submit:
 
-            if clean_name == "":
-                st.warning("Name is required.")
+            if attending == "No" and not reason.strip():
+                st.warning("Reason is required if not attending.")
+                st.stop()
 
-            elif attending == "No" and reason.strip() == "":
-                st.warning("Please provide a reason if not attending.")
+            existing = db.collection("attendance_details") \
+                .where("meeting_id", "==", meeting_id) \
+                .where("user_id", "==", user_id) \
+                .stream()
 
-            else:
+            if list(existing):
+                st.error("Attendance already submitted.")
+                st.stop()
 
-                # ✅ Duplicate attendance check
-                if user_id != "public":
-                    existing = db.collection("attendance_details") \
-                        .where("meeting_id", "==", meeting_id) \
-                        .where("user_id", "==", user_id) \
-                        .stream()
-                else:
-                    existing = db.collection("attendance_details") \
-                        .where("meeting_id", "==", meeting_id) \
-                        .where("name", "==", clean_name) \
-                        .stream()
+            db.collection("attendance_details").add({
+                "meeting_id": meeting_id,
+                "name": clean_name,
+                "user_id": user_id,
+                "attending": attending,
+                "reason": reason.strip() if attending == "No" else "",
+                "submitted_at": datetime.utcnow()
+            })
 
-                if list(existing):
-                    st.error("You have already submitted attendance.")
-                else:
-
-                    db.collection("attendance_details").add({
-                        "meeting_id": meeting_id,
-                        "name": clean_name,
-                        "user_id": user_id,
-                        "attending": attending,
-                        "reason": reason.strip(),
-                        "role": st.session_state.get("role"),
-                        "submitted_at": datetime.now()
-                    })
-
-                    st.success("Attendance Recorded Successfully.")
-                    st.rerun()
+            st.success("Attendance recorded successfully.")
+            st.rerun()
 # ---------------- PLAN NEXT MEETING ----------------
 elif menu == "Plan Next Meeting":
 
