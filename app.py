@@ -118,42 +118,57 @@ for key, value in default_states.items():
 
 
 # ---------------- SIDEBAR ----------------
+# ---------------- SIDEBAR ----------------
 with st.sidebar:
 
     st.markdown("## Volunteer Portal")
     st.markdown("---")
 
+    # Initialize menu state
+    if "menu" not in st.session_state:
+        st.session_state.menu = "Public Notice Board"
+
     if not st.session_state.logged_in:
+
+        options = ["Public Notice Board", "Login"]
+
+        if st.session_state.menu not in options:
+            st.session_state.menu = "Public Notice Board"
 
         menu = st.radio(
             "Navigation",
-            ["Public Notice Board", "Login"],
+            options,
+            index=options.index(st.session_state.menu),
             label_visibility="collapsed"
         )
 
     else:
 
-        st.markdown("### Main")
+        main_options = [
+            "Dashboard",
+            "Teams",
+            "Meetings",
+            "Plan Next Meeting",
+            "Reports",
+            "Public Notice Board",
+            "Logout"
+        ]
+
+        if st.session_state.role == "Admin":
+            main_options.append("Admin Panel")
+
+        if st.session_state.menu not in main_options:
+            st.session_state.menu = "Dashboard"
+
         menu = st.radio(
-            "",
-            [
-                "Dashboard",
-                "Teams",
-                "Meetings",
-                "Plan Next Meeting",
-                "Reports",
-                "Public Notice Board",
-                "Logout"
-            ],
+            "Navigation",
+            main_options,
+            index=main_options.index(st.session_state.menu),
             label_visibility="collapsed"
         )
 
-        # Admin section separated visually
-        if st.session_state.role == "Admin":
-            st.markdown("---")
-            st.markdown("### Administration")
-            if st.button("Admin Panel"):
-                menu = "Admin Panel"
+    # Save selected menu
+    st.session_state.menu = menu
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
