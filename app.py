@@ -447,7 +447,71 @@ elif menu == "Login":
                 st.success("Registration submitted. Await admin approval.")
                 st.rerun()
 #================= MEETING MANAGEMENT =================#
+# ---------------- MEETINGS ----------------
+elif menu == "Meetings":
 
+    st.title("Meeting Attendance")
+
+    meeting_ref = db.collection("admin_settings").document("meeting_options")
+    meeting_doc = meeting_ref.get()
+
+    if not meeting_doc.exists:
+        st.error("Meeting not configured by admin.")
+        st.stop()
+
+    meeting_data = meeting_doc.to_dict()
+    meeting_id = meeting_data.get("meeting_id")
+    meeting_status = meeting_data.get("status", "Closed")
+
+    st.info(f"Meeting ID: {meeting_id}")
+    st.info(f"Status: {meeting_status}")
+
+    if meeting_status != "Active":
+        st.warning("Meeting is closed.")
+        st.stop()
+
+    if not st.session_state.get("logged_in"):
+        st.warning("Login required to submit attendance.")
+        st.stop()
+
+    auto_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
+    user_id = st.session_state.get("user_id")
+    clean_name = auto_name.strip().lower()
+
+    st.text_input("Your Name", value=auto_name, disabled=True)
+
+    with st.form("attendance_form"):
+
+        attending = st.radio("Will You Attend?", ["Yes", "No"])
+        reason = st.text_area("Reason (Required if No)")
+        submit = st.form_submit_button("Submit Attendance")
+
+        if submit:
+
+            if attending == "No" and not reason.strip():
+                st.warning("Reason required if not attending.")
+                st.stop()
+
+            existing = db.collection("attendance_details") \
+                .where("meeting_id", "==", meeting_id) \
+                .where("user_id", "==", user_id) \
+                .stream()
+
+            if list(existing):
+                st.error("You already submitted attendance.")
+                st.stop()
+
+            db.collection("attendance_details").add({
+                "meeting_id": meeting_id,
+                "name": clean_name,
+                "user_id": user_id,
+                "attending": attending,
+                "reason": reason.strip() if attending == "No" else "",
+                "submitted_at": datetime.utcnow()
+            })
+
+            st.success("Attendance recorded successfully.")
+            st.rerun()
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
