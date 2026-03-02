@@ -1214,16 +1214,17 @@ elif menu == "Admin Panel":
 
             col1, col2 = st.columns(2)
 
-            # APPROVE
-      if st.button("Force Test Registration Write"):
-    db.collection("registration_requests").add({
-        "name": "Test User",
-        "father_name": "Test Father",
-        "mobile": "9999999999",
-        "status": "pending",
-        "requested_at": datetime.utcnow()
-    })
-    st.success("Test registration created")
+            # FORCE TEST BUTTON (fixed indent)
+            if st.button("Force Test Registration Write"):
+                db.collection("registration_requests").add({
+                    "name": "Test User",
+                    "father_name": "Test Father",
+                    "mobile": "9999999999",
+                    "status": "pending",
+                    "requested_at": datetime.utcnow()
+                })
+                st.success("Test registration created")
+
             # REJECT
             with col2:
                 if st.button("Reject", key=f"reject_{req_id}"):
@@ -1360,12 +1361,14 @@ elif menu == "Admin Panel":
 
             except Exception as e:
                 st.error(f"Failed to close meeting: {e}")
+
+    # FINAL FORCE TEST BUTTON (fixed indent)
     if st.button("🔥 Force Registration Write Test"):
-    db.collection("registration_requests").add({
-        "name": "Debug User",
-        "father_name": "Debug Father",
-        "mobile": "9999999999",
-        "status": "pending",
-        "requested_at": datetime.utcnow()
-    })
-    st.success("Test registration created.")
+        db.collection("registration_requests").add({
+            "name": "Debug User",
+            "father_name": "Debug Father",
+            "mobile": "9999999999",
+            "status": "pending",
+            "requested_at": datetime.utcnow()
+        })
+        st.success("Test registration created.")
