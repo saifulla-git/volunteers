@@ -1214,18 +1214,37 @@ elif menu == "Admin Panel":
 
             col1, col2 = st.columns(2)
 
-            # FORCE TEST BUTTON (fixed indent)
-            if st.button("Force Test Registration Write"):
-                db.collection("registration_requests").add({
-                    "name": "Test User",
-                    "father_name": "Test Father",
-                    "mobile": "9999999999",
-                    "status": "pending",
-                    "requested_at": datetime.utcnow()
-                })
-                st.success("Test registration created")
+            # ================= APPROVE =================
+            with col1:
+                if st.button("Approve", key=f"approve_{req_id}"):
 
-            # REJECT
+                    try:
+                        with st.spinner("Approving user..."):
+
+                            default_password = mobile[-4:]
+                            hashed_password = hash_password(default_password)
+
+                            db.collection("users").add({
+                                "name": name,
+                                "father_name": father_name,
+                                "mobile": mobile,
+                                "password_hash": hashed_password,
+                                "role": "User",
+                                "is_approved": True,
+                                "is_blocked": False,
+                                "must_change_password": True,
+                                "created_at": datetime.utcnow()
+                            })
+
+                            db.collection("registration_requests").document(req_id).delete()
+
+                        st.success("User approved and created successfully.")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Approval failed: {e}")
+
+            # ================= REJECT =================
             with col2:
                 if st.button("Reject", key=f"reject_{req_id}"):
 
@@ -1268,21 +1287,43 @@ elif menu == "Admin Panel":
             st.caption(f"Mobile: {mobile}")
             st.write(f"Status: {status}")
 
-            if st.button(
-                "Unblock User" if is_blocked else "Block User",
-                key=f"block_{user_id}"
-            ):
-                try:
-                    with st.spinner("Updating user status..."):
+            col1, col2 = st.columns(2)
+
+            # BLOCK / UNBLOCK
+            with col1:
+                if st.button(
+                    "Unblock User" if is_blocked else "Block User",
+                    key=f"block_{user_id}"
+                ):
+                    try:
+                        with st.spinner("Updating user status..."):
+                            db.collection("users").document(user_id).update({
+                                "is_blocked": not is_blocked
+                            })
+
+                        st.success("User status updated successfully.")
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Status update failed: {e}")
+
+            # RESET PASSWORD
+            with col2:
+                if st.button("Reset Password", key=f"reset_{user_id}"):
+
+                    try:
+                        default_password = mobile[-4:]
+                        hashed_password = hash_password(default_password)
+
                         db.collection("users").document(user_id).update({
-                            "is_blocked": not is_blocked
+                            "password_hash": hashed_password,
+                            "must_change_password": True
                         })
 
-                    st.success("User status updated successfully.")
-                    st.rerun()
+                        st.success("Password reset to last 4 digits.")
 
-                except Exception as e:
-                    st.error(f"Status update failed: {e}")
+                    except Exception as e:
+                        st.error(f"Password reset failed: {e}")
 
             st.divider()
 
@@ -1310,7 +1351,6 @@ elif menu == "Admin Panel":
 
     st.divider()
 
-    # CREATE / ACTIVATE MEETING
     with st.form("create_meeting_form"):
 
         new_meeting_id = st.text_input("Meeting ID")
@@ -1344,7 +1384,6 @@ elif menu == "Admin Panel":
                 except Exception as e:
                     st.error(f"Meeting activation failed: {e}")
 
-    # CLOSE MEETING
     if current_status == "Active":
 
         st.divider()
@@ -1352,23 +1391,10 @@ elif menu == "Admin Panel":
         if st.button("Close Meeting"):
             try:
                 with st.spinner("Closing meeting..."):
-                    meeting_ref.update({
-                        "status": "Closed"
-                    })
+                    meeting_ref.update({"status": "Closed"})
 
                 st.success("Meeting closed successfully.")
                 st.rerun()
 
             except Exception as e:
                 st.error(f"Failed to close meeting: {e}")
-
-    # FINAL FORCE TEST BUTTON (fixed indent)
-    if st.button("🔥 Force Registration Write Test"):
-        db.collection("registration_requests").add({
-            "name": "Debug User",
-            "father_name": "Debug Father",
-            "mobile": "9999999999",
-            "status": "pending",
-            "requested_at": datetime.utcnow()
-        })
-        st.success("Test registration created.")
