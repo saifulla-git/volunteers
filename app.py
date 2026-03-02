@@ -445,58 +445,59 @@ elif menu == "Login":
     st.divider()
 
     # ================= REGISTRATION CARD =================
-    with st.container(border=True):
+  if reg_submit:
 
-        st.subheader("New Registration")
+    try:
+        with st.spinner("Submitting registration..."):
 
-        with st.form("registration_form"):
+            reg_name = reg_name.strip()
+            reg_father = reg_father.strip()
+            reg_mobile = reg_mobile.strip()
 
-            reg_name = st.text_input("Full Name")
-            reg_father = st.text_input("Father Name")
-            reg_mobile = st.text_input("Mobile Number (10 digits)")
+            if not reg_name or not reg_father or not reg_mobile:
+                st.warning("All fields are required.")
+                st.stop()
 
-            reg_submit = st.form_submit_button("Submit Registration")
+            if not reg_mobile.isdigit() or len(reg_mobile) != 10:
+                st.error("Mobile number must be exactly 10 digits.")
+                st.stop()
 
-            if reg_submit:
+            # Check existing user
+            existing_user = list(
+                db.collection("users")
+                .where("mobile", "==", reg_mobile)
+                .stream()
+            )
 
-                reg_name = reg_name.strip()
-                reg_father = reg_father.strip()
-                reg_mobile = reg_mobile.strip()
+            if existing_user:
+                st.warning("User already registered. Please login.")
+                st.stop()
 
-                if not reg_name or not reg_father or not reg_mobile:
-                    st.warning("All fields are required.")
-                    st.stop()
+            # Check existing pending request
+            existing_request = list(
+                db.collection("registration_requests")
+                .where("mobile", "==", reg_mobile)
+                .stream()
+            )
 
-                if not reg_mobile.isdigit() or len(reg_mobile) != 10:
-                    st.error("Mobile number must be exactly 10 digits.")
-                    st.stop()
+            if existing_request:
+                st.warning("Registration already pending approval.")
+                st.stop()
 
-                existing_user = db.collection("users") \
-                    .where("mobile", "==", reg_mobile) \
-                    .stream()
+            # 🔥 FORCE WRITE
+            db.collection("registration_requests").add({
+                "name": reg_name,
+                "father_name": reg_father,
+                "mobile": reg_mobile,
+                "status": "pending",
+                "requested_at": datetime.utcnow()
+            })
 
-                if list(existing_user):
-                    st.warning("User already registered. Please login.")
-                    st.stop()
+        st.success("Registration submitted successfully.")
+        st.rerun()
 
-                existing_request = db.collection("registration_requests") \
-                    .where("mobile", "==", reg_mobile) \
-                    .stream()
-
-                if list(existing_request):
-                    st.warning("Registration already pending approval.")
-                    st.stop()
-
-                db.collection("registration_requests").add({
-                    "name": reg_name,
-                    "father_name": reg_father,
-                    "mobile": reg_mobile,
-                    "status": "pending",
-                    "requested_at": datetime.utcnow()
-                })
-
-                st.success("Registration submitted. Await admin approval.")
-                st.rerun()
+    except Exception as e:
+        st.error(f"Registration failed: {e}")
 #================= MEETING MANAGEMENT =================#
 # ---------------- MEETINGS ----------------
 elif menu == "Meetings":
