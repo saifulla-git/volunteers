@@ -586,96 +586,104 @@ elif menu == "Meetings":
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
-    st.title("📊 Meeting Dashboard")
+    st.title("Meeting Analytics Dashboard")
+    st.markdown("Clear overview of current meeting voting results")
+    st.divider()
 
-    doc = db.collection("admin_settings").document("meeting_options").get()
+    # ================= LOAD MEETING =================
+    try:
+        with st.spinner("Loading meeting data..."):
+            doc = db.collection("admin_settings").document("meeting_options").get()
+    except Exception as e:
+        st.error(f"Error loading meeting settings: {e}")
+        st.stop()
 
-    if doc.exists:
-
-        meeting_id = doc.to_dict().get("meeting_id")
-        st.info(f"Active Meeting ID: {meeting_id}")
-
-        votes = db.collection("meeting_details") \
-            .where("meeting_id", "==", meeting_id) \
-            .stream()
-
-        agenda_count = {}
-        date_count = {}
-        time_count = {}
-        place_count = {}
-
-        rows = []
-        total_votes = 0
-
-        for vote in votes:
-            data = vote.to_dict()
-            total_votes += 1
-
-            agenda = data.get("agenda")
-            date = data.get("date")
-            time = data.get("time")
-            place = data.get("place")
-            name = data.get("name_father")
-
-            rows.append(data)
-
-            agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
-            date_count[date] = date_count.get(date, 0) + 1
-            time_count[time] = time_count.get(time, 0) + 1
-            place_count[place] = place_count.get(place, 0) + 1
-
-        if total_votes > 0:
-
-            st.metric("Total Votes", total_votes)
-
-            import pandas as pd
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.subheader("Agenda %")
-                df_agenda = pd.DataFrame(
-                    {k: round((v/total_votes)*100,2) for k,v in agenda_count.items()},
-                    index=["%"]
-                ).T
-                st.bar_chart(df_agenda, height=250)
-
-                st.subheader("Date %")
-                df_date = pd.DataFrame(
-                    {k: round((v/total_votes)*100,2) for k,v in date_count.items()},
-                    index=["%"]
-                ).T
-                st.bar_chart(df_date, height=250)
-
-            with col2:
-                st.subheader("Time %")
-                df_time = pd.DataFrame(
-                    {k: round((v/total_votes)*100,2) for k,v in time_count.items()},
-                    index=["%"]
-                ).T
-                st.bar_chart(df_time, height=250)
-
-                st.subheader("Place %")
-                df_place = pd.DataFrame(
-                    {k: round((v/total_votes)*100,2) for k,v in place_count.items()},
-                    index=["%"]
-                ).T
-                st.bar_chart(df_place, height=250)
-
-            st.divider()
-            st.subheader("🗂 All Submitted Votes")
-
-            df_table = pd.DataFrame(rows)
-            st.dataframe(df_table, use_container_width=True)
-
-        else:
-            st.warning("No votes submitted yet.")
-
-    else:
+    if not doc.exists:
         st.error("Meeting settings not found.")
-        
-                
-       
+        st.stop()
+
+    meeting_id = doc.to_dict().get("meeting_id")
+    meeting_status = doc.to_dict().get("status", "Closed")
+
+    col1, col2 = st.columns(2)
+    col1.info(f"Meeting ID: {meeting_id}")
+    col2.info(f"Status: {meeting_status}")
+
+    st.divider()
+
+    # ================= LOAD VOTES =================
+    try:
+        with st.spinner("Fetching votes..."):
+            votes = list(
+                db.collection("meeting_details")
+                .where("meeting_id", "==", meeting_id)
+                .stream()
+            )
+    except Exception as e:
+        st.error(f"Error loading votes: {e}")
+        st.stop()
+
+    if not votes:
+        st.warning("No votes submitted yet.")
+        st.stop()
+
+    agenda_count = {}
+    date_count = {}
+    time_count = {}
+    place_count = {}
+    rows = []
+
+    for vote in votes:
+        data = vote.to_dict()
+        rows.append(data)
+
+        agenda_count[data.get("agenda")] = agenda_count.get(data.get("agenda"), 0) + 1
+        date_count[data.get("date")] = date_count.get(data.get("date"), 0) + 1
+        time_count[data.get("time")] = time_count.get(data.get("time"), 0) + 1
+        place_count[data.get("place")] = place_count.get(data.get("place"), 0) + 1
+
+    total_votes = len(votes)
+
+    st.metric("Total Votes", total_votes)
+    st.divider()
+
+    # ================= PIE CHARTS =================
+    import matplotlib.pyplot as plt
+
+    def draw_pie(data_dict, title):
+        fig, ax = plt.subplots(figsize=(3,3))
+        ax.pie(
+            data_dict.values(),
+            labels=data_dict.keys(),
+            autopct="%1.1f%%",
+            startangle=90
+        )
+        ax.set_title(title)
+        st.pyplot(fig)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        draw_pie(agenda_count, "Agenda Distribution")
+        draw_pie(date_count, "Date Distribution")
+
+    with col2:
+        draw_pie(time_count, "Time Distribution")
+        draw_pie(place_count, "Place Distribution")
+
+    st.divider()
+
+    # ================= CLEAN TABLE =================
+    st.subheader("Submitted Votes")
+
+    import pandas as pd
+    df_table = pd.DataFrame(rows)
+
+    st.dataframe(
+        df_table,
+        use_container_width=True,
+        height=400
+    )
 # ---------------- TEAMS ----------------
 elif menu == "Teams":
 
