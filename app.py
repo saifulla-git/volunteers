@@ -105,6 +105,7 @@ def get_user_by_mobile(mobile):
 
 # ---------------- SESSION ----------------
 # ---------------- SESSION STATE ----------------
+# ---------------- SESSION STATE ----------------
 default_states = {
     "logged_in": False,
     "role": None,
@@ -119,37 +120,39 @@ for key, value in default_states.items():
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
 
-    st.markdown("## 🤝 Volunteer Portal")
+    st.markdown("## Volunteer Portal")
     st.markdown("---")
 
     if not st.session_state.logged_in:
 
         menu = st.radio(
             "Navigation",
-            ["📢 Public Notice Board", "🔐 Login"],
+            ["Public Notice Board", "Login"],
             label_visibility="collapsed"
         )
 
     else:
 
-        st.markdown("### 🧭 Main")
+        st.markdown("### Main")
         menu = st.radio(
             "",
             [
-                "📊 Dashboard",
-                "👥 Teams",
-                "📅 Meetings",
-                "🗳 Plan Next Meeting",
-                "📊 Reports",
-                "📢 Public Notice Board",
-                "🚪 Logout"
+                "Dashboard",
+                "Teams",
+                "Meetings",
+                "Plan Next Meeting",
+                "Reports",
+                "Public Notice Board",
+                "Logout"
             ],
             label_visibility="collapsed"
         )
 
+        # Admin section separated visually
         if st.session_state.role == "Admin":
-            st.markdown("### ⚙ Admin")
-            if st.button("👑 Admin Panel"):
+            st.markdown("---")
+            st.markdown("### Administration")
+            if st.button("Admin Panel"):
                 menu = "Admin Panel"
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
