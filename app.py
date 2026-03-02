@@ -104,31 +104,53 @@ def get_user_by_mobile(mobile):
     return None
 
 # ---------------- SESSION ----------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "role" not in st.session_state:
-    st.session_state.role = None
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
+# ---------------- SESSION STATE ----------------
+default_states = {
+    "logged_in": False,
+    "role": None,
+    "user_id": None,
+}
+
+for key, value in default_states.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
 
 # ---------------- SIDEBAR ----------------
-st.sidebar.title("🤝 Volunteer Portal")
+with st.sidebar:
 
-if not st.session_state.logged_in:
-    menu = st.sidebar.radio("Menu", ["Public Notice Board", "Login"])
-else:
-    menu = st.sidebar.radio("Navigation", [
-        "Dashboard",
-        "Teams",
-        "Meetings",
-        "Plan Next Meeting",
-        "Planning",
-        "Reports",
-        "Admin Panel",
-        "Public Notice Board",
-        "Logout"
-    ])
+    st.markdown("## 🤝 Volunteer Portal")
+    st.markdown("---")
 
+    if not st.session_state.logged_in:
+
+        menu = st.radio(
+            "Navigation",
+            ["📢 Public Notice Board", "🔐 Login"],
+            label_visibility="collapsed"
+        )
+
+    else:
+
+        st.markdown("### 🧭 Main")
+        menu = st.radio(
+            "",
+            [
+                "📊 Dashboard",
+                "👥 Teams",
+                "📅 Meetings",
+                "🗳 Plan Next Meeting",
+                "📊 Reports",
+                "📢 Public Notice Board",
+                "🚪 Logout"
+            ],
+            label_visibility="collapsed"
+        )
+
+        if st.session_state.role == "Admin":
+            st.markdown("### ⚙ Admin")
+            if st.button("👑 Admin Panel"):
+                menu = "Admin Panel"
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
