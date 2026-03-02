@@ -308,137 +308,144 @@ if menu == "Public Notice Board":
 # ---------------- LOGIN ----------------
 elif menu == "Login":
 
-    st.title("🔐 Login")
+    st.title("Account Access")
+    st.markdown("Login to access your dashboard or submit a registration request.")
+    st.divider()
 
-    mobile = st.text_input("Mobile Number")
-    password = st.text_input("Password", type="password")
+    # ================= LOGIN CARD =================
+    with st.container(border=True):
 
-    if st.button("Login"):
+        st.subheader("Login")
 
-        user = get_user_by_mobile(mobile)
+        mobile = st.text_input("Mobile Number")
+        password = st.text_input("Password", type="password")
 
-        if not user:
-            st.error("User not found")
+        if st.button("Login", use_container_width=True):
 
-        elif not user.get("is_approved", False):
-            st.warning("Account not approved by admin yet.")
+            user = get_user_by_mobile(mobile.strip())
 
-        elif user.get("is_blocked", False):
-            st.error("Your account is blocked.")
+            if not user:
+                st.error("User not found.")
 
-        elif check_password(password, user.get("password_hash")):
+            elif not user.get("is_approved", False):
+                st.warning("Account not approved by admin yet.")
 
-            # 🔥 If password change required
-            if user.get("must_change_password", False):
+            elif user.get("is_blocked", False):
+                st.error("Your account is blocked.")
 
-                st.session_state.force_password_change = True
-                st.session_state.temp_user_id = user.get("id")
-                st.warning("⚠ You must change your password first.")
-                st.rerun()
+            elif check_password(password, user.get("password_hash")):
+
+                if user.get("must_change_password", False):
+                    st.session_state.force_password_change = True
+                    st.session_state.temp_user_id = user.get("id")
+                    st.warning("Password change required.")
+                    st.rerun()
+
+                else:
+                    st.session_state.logged_in = True
+                    st.session_state.role = user.get("role")
+                    st.session_state.user_id = user.get("id")
+                    st.session_state.name = user.get("name")
+                    st.session_state.father_name = user.get("father_name")
+
+                    st.success("Login successful.")
+                    st.rerun()
 
             else:
-                # ✅ Normal Login
-                st.session_state.logged_in = True
-                st.session_state.role = user.get("role")
-                st.session_state.user_id = user.get("id")
-                st.session_state.name = user.get("name")
-                st.session_state.father_name = user.get("father_name")
+                st.error("Incorrect password.")
 
-                st.success("Login Successful")
-                st.rerun()
-
-        else:
-            st.error("Wrong Password")
-
-    # =====================================================
-    # 🔐 FORCE PASSWORD CHANGE SCREEN
-    # =====================================================
-
+    # ================= FORCE PASSWORD CHANGE =================
     if st.session_state.get("force_password_change"):
 
-        st.warning("⚠ You must change your password before continuing.")
+        st.divider()
 
-        new_password = st.text_input("New Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
+        with st.container(border=True):
 
-        if st.button("Update Password"):
+            st.subheader("Update Password")
 
-            if len(new_password) < 6:
-                st.error("Password must be at least 6 characters.")
-                st.stop()
+            new_password = st.text_input("New Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
 
-            if new_password != confirm_password:
-                st.error("Passwords do not match.")
-                st.stop()
+            if st.button("Update Password", use_container_width=True):
 
-            hashed_password = hash_password(new_password)
+                if len(new_password) < 6:
+                    st.error("Password must be at least 6 characters.")
+                    st.stop()
 
-            db.collection("users").document(
-                st.session_state.get("temp_user_id")
-            ).update({
-                "password_hash": hashed_password,
-                "must_change_password": False
-            })
+                if new_password != confirm_password:
+                    st.error("Passwords do not match.")
+                    st.stop()
 
-            # Reset force mode
-            st.session_state.force_password_change = False
-            st.session_state.temp_user_id = None
+                hashed_password = hash_password(new_password)
 
-            st.success("Password updated successfully. Please login again.")
-            st.rerun()
+                db.collection("users").document(
+                    st.session_state.get("temp_user_id")
+                ).update({
+                    "password_hash": hashed_password,
+                    "must_change_password": False
+                })
+
+                st.session_state.force_password_change = False
+                st.session_state.temp_user_id = None
+
+                st.success("Password updated successfully. Please login again.")
+                st.rerun()
 
     st.divider()
-    # ---------------- REGISTRATION ----------------
-    st.subheader("📝 New Registration")
 
-    with st.form("registration_form"):
+    # ================= REGISTRATION CARD =================
+    with st.container(border=True):
 
-        reg_name = st.text_input("Full Name")
-        reg_father = st.text_input("Father Name")
-        reg_mobile = st.text_input("Mobile Number (10 digits)")
+        st.subheader("New Registration")
 
-        reg_submit = st.form_submit_button("Submit Registration")
+        with st.form("registration_form"):
 
-        if reg_submit:
+            reg_name = st.text_input("Full Name")
+            reg_father = st.text_input("Father Name")
+            reg_mobile = st.text_input("Mobile Number (10 digits)")
 
-            reg_name = reg_name.strip()
-            reg_father = reg_father.strip()
-            reg_mobile = reg_mobile.strip()
+            reg_submit = st.form_submit_button("Submit Registration")
 
-            if reg_name == "" or reg_father == "" or reg_mobile == "":
-                st.warning("All fields are required.")
-                st.stop()
+            if reg_submit:
 
-            if not reg_mobile.isdigit() or len(reg_mobile) != 10:
-                st.error("Mobile number must be exactly 10 digits.")
-                st.stop()
+                reg_name = reg_name.strip()
+                reg_father = reg_father.strip()
+                reg_mobile = reg_mobile.strip()
 
-            existing_user = db.collection("users") \
-                .where("mobile", "==", reg_mobile) \
-                .stream()
+                if not reg_name or not reg_father or not reg_mobile:
+                    st.warning("All fields are required.")
+                    st.stop()
 
-            if list(existing_user):
-                st.warning("User already registered. Please login.")
-                st.stop()
+                if not reg_mobile.isdigit() or len(reg_mobile) != 10:
+                    st.error("Mobile number must be exactly 10 digits.")
+                    st.stop()
 
-            existing_request = db.collection("registration_requests") \
-                .where("mobile", "==", reg_mobile) \
-                .stream()
+                existing_user = db.collection("users") \
+                    .where("mobile", "==", reg_mobile) \
+                    .stream()
 
-            if list(existing_request):
-                st.warning("Registration already pending approval.")
-                st.stop()
+                if list(existing_user):
+                    st.warning("User already registered. Please login.")
+                    st.stop()
 
-            db.collection("registration_requests").add({
-                "name": reg_name,
-                "father_name": reg_father,
-                "mobile": reg_mobile,
-                "status": "pending",
-                "requested_at": datetime.utcnow()
-            })
+                existing_request = db.collection("registration_requests") \
+                    .where("mobile", "==", reg_mobile) \
+                    .stream()
 
-            st.success("Registration request submitted. Wait for admin approval.")
-            st.rerun()
+                if list(existing_request):
+                    st.warning("Registration already pending approval.")
+                    st.stop()
+
+                db.collection("registration_requests").add({
+                    "name": reg_name,
+                    "father_name": reg_father,
+                    "mobile": reg_mobile,
+                    "status": "pending",
+                    "requested_at": datetime.utcnow()
+                })
+
+                st.success("Registration submitted. Await admin approval.")
+                st.rerun()
 #================= MEETING MANAGEMENT =================#
 elif menu == "Meetings":
 
