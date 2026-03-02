@@ -447,57 +447,7 @@ elif menu == "Login":
                 st.success("Registration submitted. Await admin approval.")
                 st.rerun()
 #================= MEETING MANAGEMENT =================#
-if meeting_status == "Active":
 
-    st.divider()
-
-    # ================= ATTENDANCE (Logged Users Only) =================
-    if st.session_state.get("logged_in"):
-
-        with st.container(border=True):
-
-            st.subheader("Submit Attendance")
-
-            auto_name = f"{st.session_state.name} / {st.session_state.father_name}"
-            user_id = st.session_state.get("user_id")
-
-            st.text_input("Your Name", value=auto_name, disabled=True)
-            clean_name = auto_name.strip().lower()
-
-            with st.form("attendance_form"):
-                attending = st.radio("Will You Attend?", ["Yes", "No"])
-                reason = st.text_area("Reason (Required if No)")
-                submit = st.form_submit_button("Submit Attendance")
-
-            if submit:
-
-                if attending == "No" and reason.strip() == "":
-                    st.warning("Reason is required if not attending.")
-                    st.stop()
-
-                existing = db.collection("attendance_details") \
-                    .where("meeting_id", "==", meeting_id) \
-                    .where("user_id", "==", user_id) \
-                    .stream()
-
-                if list(existing):
-                    st.error("Attendance already submitted.")
-                    st.stop()
-
-                db.collection("attendance_details").add({
-                    "meeting_id": meeting_id,
-                    "name": clean_name,
-                    "user_id": user_id,
-                    "attending": attending,
-                    "reason": reason.strip() if attending == "No" else "",
-                    "submitted_at": datetime.utcnow()
-                })
-
-                st.success("Attendance recorded successfully.")
-                st.rerun()
-
-    else:
-        st.info("Login required to submit attendance.")
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
