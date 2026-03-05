@@ -1393,3 +1393,17 @@ elif menu == "Admin Panel":
 
             except Exception as e:
                 st.error(f"Failed to close meeting: {e}")
+#-----------------------------------------#
+# ---------------- LOGOUT ----------------
+#----------------------------------------#
+elif menu == "Logout":
+
+    st.session_state.logged_in = False
+    st.session_state.role = None
+    st.session_state.user_id = None
+    st.session_state.name = None
+    st.session_state.father_name = None
+
+    st.success("You have been logged out successfully.")
+
+    st.rerun()
