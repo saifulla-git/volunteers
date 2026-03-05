@@ -155,30 +155,25 @@ for key, value in default_states.items():
 
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
-with st.sidebar:
-
-    st.markdown("## Volunteer Portal")
-    st.markdown("---")
-
-    # Initialize menu state
-   if "menu" not in st.session_state:
-    st.session_state.menu = "Public Notice Board"
-
-if not st.session_state.logged_in:
-
-    options = ["Public Notice Board", "Login", "Change Password"]
-
-    # ensure current menu exists in options
-    if st.session_state.menu not in options:
+    if "menu" not in st.session_state:
         st.session_state.menu = "Public Notice Board"
 
-    menu = st.radio(
-        "Navigation",
-        options,
-        index=options.index(st.session_state.menu) if st.session_state.menu in options else 0,
-        label_visibility="collapsed"
-    )
+    if not st.session_state.logged_in:
 
+        options = ["Public Notice Board", "Login", "Change Password"]
+
+        # make sure current menu exists in options
+        if st.session_state.menu not in options:
+            st.session_state.menu = "Public Notice Board"
+
+        menu = st.radio(
+            "Navigation",
+            options,
+            index=options.index(st.session_state.menu) if st.session_state.menu in options else 0,
+            label_visibility="collapsed"
+        )
+
+    
     # update session state
     st.session_state.menu = menu
     else:
