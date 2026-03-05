@@ -161,23 +161,26 @@ with st.sidebar:
     st.markdown("---")
 
     # Initialize menu state
-    if "menu" not in st.session_state:
+   if "menu" not in st.session_state:
+    st.session_state.menu = "Public Notice Board"
+
+if not st.session_state.logged_in:
+
+    options = ["Public Notice Board", "Login", "Change Password"]
+
+    # ensure current menu exists in options
+    if st.session_state.menu not in options:
         st.session_state.menu = "Public Notice Board"
 
-    if not st.session_state.logged_in:
+    menu = st.radio(
+        "Navigation",
+        options,
+        index=options.index(st.session_state.menu) if st.session_state.menu in options else 0,
+        label_visibility="collapsed"
+    )
 
-        options = ["Public Notice Board", "Login", "Change Password"]
-
-        if st.session_state.menu not in options:
-            st.session_state.menu = "Public Notice Board"
-
-        menu = st.radio(
-            "Navigation",
-            options,
-            index=options.index(st.session_state.menu),
-            label_visibility="collapsed"
-        )
-
+    # update session state
+    st.session_state.menu = menu
     else:
 
         main_options = [
