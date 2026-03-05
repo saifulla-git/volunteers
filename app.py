@@ -166,7 +166,7 @@ with st.sidebar:
 
     if not st.session_state.logged_in:
 
-       options = ["Public Notice Board", "Login", "Change Password"]
+        options = ["Public Notice Board", "Login", "Change Password"]
 
         if st.session_state.menu not in options:
             st.session_state.menu = "Public Notice Board"
