@@ -1398,14 +1398,9 @@ elif menu == "Admin Panel":
 #----------------------------------------#
 elif menu == "Logout":
 
-    st.session_state.logged_in = False
-    st.session_state.role = None
-    st.session_state.user_id = None
-    st.session_state.name = None
-    st.session_state.father_name = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
-    st.success("You have been logged out successfully.")
+    st.success("Logged out successfully.")
 
     st.rerun()
-# codex review test
-test codex
