@@ -155,54 +155,47 @@ for key, value in default_states.items():
 
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
-    if "menu" not in st.session_state:
+   if "menu" not in st.session_state:
+    st.session_state.menu = "Public Notice Board"
+
+if not st.session_state.logged_in:
+
+    options = ["Public Notice Board", "Login", "Change Password"]
+
+    if st.session_state.menu not in options:
         st.session_state.menu = "Public Notice Board"
 
-    if not st.session_state.logged_in:
+    menu = st.radio(
+        "Navigation",
+        options,
+        key="menu",
+        label_visibility="collapsed"
+    )
 
-        options = ["Public Notice Board", "Login", "Change Password"]
+else:
 
-        # make sure current menu exists in options
-        if st.session_state.menu not in options:
-            st.session_state.menu = "Public Notice Board"
+    main_options = [
+        "Dashboard",
+        "Teams",
+        "Meetings",
+        "Plan Next Meeting",
+        "Reports",
+        "Public Notice Board",
+        "Logout"
+    ]
 
-        menu = st.radio(
-            "Navigation",
-            options,
-            index=options.index(st.session_state.menu) if st.session_state.menu in options else 0,
-            label_visibility="collapsed"
-        )
+    if st.session_state.role == "Admin":
+        main_options.append("Admin Panel")
 
-    
-    # update session state
-    st.session_state.menu = menu
-    else:
+    if st.session_state.menu not in main_options:
+        st.session_state.menu = "Dashboard"
 
-        main_options = [
-            "Dashboard",
-            "Teams",
-            "Meetings",
-            "Plan Next Meeting",
-            "Reports",
-            "Public Notice Board",
-            "Logout"
-        ]
-
-        if st.session_state.role == "Admin":
-            main_options.append("Admin Panel")
-
-        if st.session_state.menu not in main_options:
-            st.session_state.menu = "Dashboard"
-
-        menu = st.radio(
-            "Navigation",
-            main_options,
-            index=main_options.index(st.session_state.menu),
-            label_visibility="collapsed"
-        )
-
-    # Save selected menu
-    st.session_state.menu = menu
+    menu = st.radio(
+        "Navigation",
+        main_options,
+        key="menu",
+        label_visibility="collapsed"
+    )
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
