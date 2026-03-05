@@ -160,6 +160,11 @@ if "menu" not in st.session_state:
     st.session_state.menu = "Public Notice Board"
 
 # ---------- BEFORE LOGIN ----------
+# Initialize menu state
+if "menu" not in st.session_state:
+    st.session_state.menu = "Public Notice Board"
+
+# ---------- BEFORE LOGIN ----------
 if not st.session_state.logged_in:
 
     options = ["Public Notice Board", "Login", "Change Password"]
