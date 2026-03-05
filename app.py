@@ -155,9 +155,11 @@ for key, value in default_states.items():
 
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
-   if "menu" not in st.session_state:
+   # Initialize menu state
+if "menu" not in st.session_state:
     st.session_state.menu = "Public Notice Board"
 
+# ---------- BEFORE LOGIN ----------
 if not st.session_state.logged_in:
 
     options = ["Public Notice Board", "Login", "Change Password"]
@@ -172,6 +174,7 @@ if not st.session_state.logged_in:
         label_visibility="collapsed"
     )
 
+# ---------- AFTER LOGIN ----------
 else:
 
     main_options = [
