@@ -156,54 +156,56 @@ for key, value in default_states.items():
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
    # Initialize menu state
-if "menu" not in st.session_state:
-    st.session_state.menu = "Public Notice Board"
+# ---------------- SIDEBAR ----------------
+with st.sidebar:
 
-# ---------- BEFORE LOGIN ----------
-# Initialize menu state
-if "menu" not in st.session_state:
-    st.session_state.menu = "Public Notice Board"
+    st.markdown("## Volunteer Portal")
+    st.markdown("---")
 
-# ---------- BEFORE LOGIN ----------
-if not st.session_state.logged_in:
-
-    options = ["Public Notice Board", "Login", "Change Password"]
-
-    if st.session_state.menu not in options:
+    # Initialize menu state
+    if "menu" not in st.session_state:
         st.session_state.menu = "Public Notice Board"
 
-    menu = st.radio(
-        "Navigation",
-        options,
-        key="menu",
-        label_visibility="collapsed"
-    )
+    # ---------- BEFORE LOGIN ----------
+    if not st.session_state.logged_in:
 
-# ---------- AFTER LOGIN ----------
-else:
+        options = ["Public Notice Board", "Login", "Change Password"]
 
-    main_options = [
-        "Dashboard",
-        "Teams",
-        "Meetings",
-        "Plan Next Meeting",
-        "Reports",
-        "Public Notice Board",
-        "Logout"
-    ]
+        if st.session_state.menu not in options:
+            st.session_state.menu = "Public Notice Board"
 
-    if st.session_state.role == "Admin":
-        main_options.append("Admin Panel")
+        st.radio(
+            "Navigation",
+            options,
+            key="menu",
+            label_visibility="collapsed"
+        )
 
-    if st.session_state.menu not in main_options:
-        st.session_state.menu = "Dashboard"
+    # ---------- AFTER LOGIN ----------
+    else:
 
-    menu = st.radio(
-        "Navigation",
-        main_options,
-        key="menu",
-        label_visibility="collapsed"
-    )
+        main_options = [
+            "Dashboard",
+            "Teams",
+            "Meetings",
+            "Plan Next Meeting",
+            "Reports",
+            "Public Notice Board",
+            "Logout"
+        ]
+
+        if st.session_state.role == "Admin":
+            main_options.append("Admin Panel")
+
+        if st.session_state.menu not in main_options:
+            st.session_state.menu = "Dashboard"
+
+        st.radio(
+            "Navigation",
+            main_options,
+            key="menu",
+            label_visibility="collapsed"
+        )
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
