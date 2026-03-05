@@ -166,7 +166,7 @@ with st.sidebar:
 
     if not st.session_state.logged_in:
 
-        options = ["Public Notice Board", "Login"]
+        options = ["Public Notice Board", "Login", "Change Password"]
 
         if st.session_state.menu not in options:
             st.session_state.menu = "Public Notice Board"
@@ -501,6 +501,48 @@ elif menu == "Login":
 
                 except Exception as e:
                     st.error(f"Registration failed: {e}")
+
+# ---------------- CHANGE PASSWORD ----------------
+#--------------------------------------------------
+#--------------------------------------------------
+elif menu == "Change Password":
+
+    st.title("Change Password")
+
+    mobile = st.text_input("Mobile Number")
+    old_password = st.text_input("Current Password", type="password")
+    new_password = st.text_input("New Password", type="password")
+    confirm_password = st.text_input("Confirm New Password", type="password")
+
+    if st.button("Update Password"):
+
+        user = get_user_by_mobile(mobile.strip())
+
+        if not user:
+            st.error("User not found.")
+            st.stop()
+
+        # check old password
+        if not check_password(old_password, user.get("password_hash")):
+            st.error("Current password is incorrect.")
+            st.stop()
+
+        if len(new_password) < 6:
+            st.error("Password must be at least 6 characters.")
+            st.stop()
+
+        if new_password != confirm_password:
+            st.error("Passwords do not match.")
+            st.stop()
+
+        hashed_password = hash_password(new_password)
+
+        db.collection("users").document(user["id"]).update({
+            "password_hash": hashed_password,
+            "must_change_password": False
+        })
+
+        st.success("Password updated successfully.")
 #================= MEETING MANAGEMENT =================#
 # ---------------- MEETINGS ----------------
 elif menu == "Meetings":
