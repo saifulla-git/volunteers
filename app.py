@@ -1406,8 +1406,7 @@ elif menu == "Admin Panel":
     # ======================================================
     # MEETING MANAGEMENT
     # ======================================================
-
-  st.subheader("Meeting Management")
+    st.subheader("Meeting Management")
 
     meeting_ref = db.collection("admin_settings").document("meeting_options")
 
@@ -1481,6 +1480,7 @@ elif menu == "Admin Panel":
 
             except Exception as e:
                 st.error(f"Failed to reactivate meeting: {e}")
+ 
 #-----------------------------------------#
 # ---------------- LOGOUT ----------------
 #----------------------------------------#
