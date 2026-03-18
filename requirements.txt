@@ -2,3 +2,5 @@ streamlit
 firebase-admin
 google-cloud-firestore
 bcrypt
+pandas
+matplotlib
