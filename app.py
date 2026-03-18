@@ -223,6 +223,9 @@ with st.sidebar:
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
+# ---------------- PUBLIC NOTICE BOARD ----------------
+# ---------------- PUBLIC NOTICE BOARD ----------------
+# ---------------- PUBLIC NOTICE BOARD ----------------
 if menu == "Public Notice Board":
 
     st.title("Public Notice Board")
@@ -249,7 +252,8 @@ if menu == "Public Notice Board":
                     "notice": notice_text.strip(),
                     "name_father": auto_name,
                     "posted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "is_pinned": False
+                    "is_pinned": False,
+                    "likes": 0  # Initialize likes counter to 0 for new notices
                 })
                 st.success("Notice posted successfully.")
                 st.rerun()
@@ -284,6 +288,7 @@ if menu == "Public Notice Board":
             name_father = data.get("name_father", "Unknown")
             posted_at = data.get("posted_at", "")
             is_pinned = data.get("is_pinned", False)
+            likes = data.get("likes", 0) # Fetch current likes
 
             with st.container(border=True):
 
@@ -291,9 +296,10 @@ if menu == "Public Notice Board":
 
                 with header_col1:
                     if is_pinned:
-                        st.markdown("**Pinned Notice**")
+                        st.markdown("**📌 Pinned Notice**")
                     st.markdown(f"### {notice_text}")
                     st.caption(f"Posted by {name_father} • {posted_at}")
+                    st.markdown(f"❤️ **{likes}** Likes")
 
                 with header_col2:
                     if st.button("Pin / Unpin", key=f"pin_{notice_id}"):
@@ -329,46 +335,44 @@ if menu == "Public Notice Board":
 
                 st.divider()
 
-                # ================= COMMENTS =================
-                st.subheader("Comments")
+                # ================= LIKES SECTION =================
+                user_id = st.session_state.get("user_id", "anonymous")
+                
+                if st.session_state.get("logged_in"):
+                    user_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
+                else:
+                    user_name = "Anonymous User"
 
-                comments = db.collection("notices") \
+                # Check if this exact user has already liked this specific notice
+                existing_like = db.collection("notices") \
                     .document(notice_id) \
-                    .collection("comments") \
+                    .collection("likes") \
+                    .where("user_id", "==", user_id) \
                     .stream()
 
-                for c in comments:
-                    comment_data = c.to_dict()
-                    with st.container():
-                        st.markdown(f"**{comment_data.get('name_father','User')}**")
-                        st.write(comment_data.get("comment",""))
-                        st.caption(comment_data.get("commented_at",""))
-                        st.markdown("---")
-
-                # -------- ADD COMMENT --------
-                if st.session_state.get("logged_in"):
-                    comment_name = f"{st.session_state.get('name','')} / {st.session_state.get('father_name','')}"
-                else:
-                    comment_name = st.text_input("Your Name", key=f"name_{notice_id}")
-
-                comment_text = st.text_input("Add Comment", key=f"comment_{notice_id}")
-
-                if st.button("Submit Comment", key=f"submit_{notice_id}"):
-
-                    if comment_text.strip() == "" or comment_name.strip() == "":
-                        st.warning("Name and comment are required.")
-                    else:
+                if not list(existing_like):
+                    if st.button("🤍 Like", key=f"like_notice_{notice_id}"):
+                        
+                        # 1. Record the user to prevent duplicate likes
                         db.collection("notices") \
                             .document(notice_id) \
-                            .collection("comments") \
+                            .collection("likes") \
                             .add({
-                                "name_father": comment_name,
-                                "comment": comment_text.strip(),
-                                "commented_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                                "user_id": user_id,
+                                "name": user_name,
+                                "liked_at": datetime.now().strftime("%Y-%m-%d %H:%M")
                             })
 
-                        st.success("Comment added.")
+                        # 2. Increment the main likes counter on the notice document
+                        db.collection("notices") \
+                            .document(notice_id) \
+                            .update({
+                                "likes": likes + 1
+                            })
+
                         st.rerun()
+                else:
+                    st.markdown("❤️ *You liked this*")
 
             st.markdown(" ")
 # ---------------- LOGIN ----------------
