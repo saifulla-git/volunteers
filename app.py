@@ -1582,22 +1582,34 @@ elif menu == "Admin Panel":
         activate = st.form_submit_button("Activate Meeting")
 
         if activate:
-            if not new_meeting_id.strip():
+            clean_id = new_meeting_id.strip()
+            
+            if not clean_id:
                 st.error("Meeting ID required.")
             else:
                 try:
-                    meeting_ref.set({
-                        "meeting_id": new_meeting_id.strip(),
-                        "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
-                        "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
-                        "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
-                        "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
-                        "status": "Active",
-                        "created_at": datetime.utcnow()
-                    })
+                    with st.spinner("Checking for duplicate IDs..."):
+                        # --- NEW: DUPLICATE CHECK ---
+                        # Look for this ID in past attendance or past votes
+                        past_attendance = list(db.collection("attendance_details").where("meeting_id", "==", clean_id).limit(1).stream())
+                        past_votes = list(db.collection("meeting_details").where("meeting_id", "==", clean_id).limit(1).stream())
+                        
+                    if past_attendance or past_votes or (current_meeting_id == clean_id):
+                        st.error(f"Meeting ID '{clean_id}' has already been used! Please choose a unique ID.")
+                    else:
+                        # --- SAFE TO CREATE ---
+                        meeting_ref.set({
+                            "meeting_id": clean_id,
+                            "agenda_options": [x.strip() for x in agenda_input.split(",") if x.strip()],
+                            "date_options": [x.strip() for x in date_input.split(",") if x.strip()],
+                            "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
+                            "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
+                            "status": "Active",
+                            "created_at": datetime.utcnow()
+                        })
 
-                    st.success("Meeting activated successfully.")
-                    st.rerun()
+                        st.success(f"Meeting {clean_id} activated successfully.")
+                        st.rerun()
 
                 except Exception as e:
                     st.error(f"Meeting activation failed: {e}")
