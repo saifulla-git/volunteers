@@ -132,11 +132,14 @@ def check_password(password, hashed):
     except Exception:
         return False
 def get_user_by_mobile(mobile):
-    users = db.collection("users").where("mobile", "==", mobile).stream()
+    # We added .limit(1) so it stops searching immediately after finding the user!
+    users = db.collection("users").where("mobile", "==", mobile).limit(1).stream()
+    
     for user in users:
         data = user.to_dict()
         data["id"] = user.id
         return data
+        
     return None
 
 # ---------------- SESSION ----------------
