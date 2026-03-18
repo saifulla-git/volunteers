@@ -1405,37 +1405,25 @@ elif menu == "Admin Panel":
 
     # ================= MEETING HISTORY =================
     # ================= MEETING HISTORY =================
+    # ================= MEETING HISTORY =================
     st.divider()
     st.subheader("Meeting History Viewer")
 
     try:
-        all_attendance_docs = db.collection("attendance_details").stream()
+        # --- NEW: READ FROM THE MASTER LIST INSTEAD OF SCANNING EVERYTHING ---
+        master_list_docs = db.collection("meetings_history_list").stream()
         
-        unique_meetings = set()
-        for doc in all_attendance_docs:
+        unique_meetings = []
+        for doc in master_list_docs:
             record = doc.to_dict()
             if "meeting_id" in record:
-                m_id = record["meeting_id"]
-                # FIX: If it accidentally saved as a list, pull the first item out
-                if isinstance(m_id, list) and len(m_id) > 0:
-                    m_id = m_id[0]
-                unique_meetings.add(str(m_id)) # Force it to be text
-        
-        # Also check meeting_details (votes) for unique IDs in case no attendance was taken
-        all_vote_docs = db.collection("meeting_details").stream()
-        for doc in all_vote_docs:
-            record = doc.to_dict()
-            if "meeting_id" in record:
-                m_id = record["meeting_id"]
-                # FIX: Same here
-                if isinstance(m_id, list) and len(m_id) > 0:
-                    m_id = m_id[0]
-                unique_meetings.add(str(m_id)) # Force it to be text
-
+                unique_meetings.add(str(record["meeting_id"]))
+                
+        # Sort them so the newest ones are usually at the top
         meeting_list = sorted(list(unique_meetings), reverse=True)
 
         if not meeting_list:
-            st.info("No past meeting records found in the database yet.")
+            st.info("No past meeting records found in the Master List yet. Create a new meeting to start tracking!")
         else:
             selected_meeting = st.selectbox(
                 "Select a past meeting to view its data:", 
@@ -1444,6 +1432,9 @@ elif menu == "Admin Panel":
 
             if selected_meeting != "-- Select a Meeting --":
                 st.markdown(f"### Data for Meeting: {selected_meeting}")
+                
+                # --- 1. ATTENDANCE DATA ---
+                # (Keep the rest of your attendance and voting code exactly the same below here!)
                 
                 # --- 1. ATTENDANCE DATA ---
                 st.subheader("1. Attendance Summary")
@@ -1589,7 +1580,6 @@ elif menu == "Admin Panel":
             else:
                 try:
                     with st.spinner("Checking for duplicate IDs..."):
-                        # --- NEW: DUPLICATE CHECK ---
                         # Look for this ID in past attendance or past votes
                         past_attendance = list(db.collection("attendance_details").where("meeting_id", "==", clean_id).limit(1).stream())
                         past_votes = list(db.collection("meeting_details").where("meeting_id", "==", clean_id).limit(1).stream())
@@ -1605,6 +1595,12 @@ elif menu == "Admin Panel":
                             "time_options": [x.strip() for x in time_input.split(",") if x.strip()],
                             "place_options": [x.strip() for x in place_input.split(",") if x.strip()],
                             "status": "Active",
+                            "created_at": datetime.utcnow()
+                        })
+
+                        # --- NEW: SAVE TO MASTER LIST (Metadata Collection) ---
+                        db.collection("meetings_history_list").document(clean_id).set({
+                            "meeting_id": clean_id,
                             "created_at": datetime.utcnow()
                         })
 
