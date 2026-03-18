@@ -369,6 +369,10 @@ if menu == "Public Notice Board":
 
             st.markdown(" ")
 # ---------------- LOGIN ----------------
+# ---------------- LOGIN ----------------
+# ---------------- LOGIN ----------------
+# ---------------- LOGIN ----------------
+
 elif menu == "Login":
 
     st.title("Account Access")
@@ -402,15 +406,22 @@ elif menu == "Login":
                 st.error("Incorrect password.")
 
             else:
-                st.session_state.logged_in = True
-                st.session_state.role = user.get("role")
-                st.session_state.user_id = user.get("mobile")
-                st.session_state.name = user.get("name")
-                st.session_state.father_name = user.get("father_name")
+                # --- THIS IS THE NEW PART ---
+                if user.get("must_change_password", False):
+                    st.session_state.force_password_change = True
+                    st.session_state.temp_user_id = user.get("id") 
+                    st.warning("Admin reset your password. Please update it now.")
+                    st.rerun()
+                # --- THIS IS YOUR EXISTING LOGIN PART ---
+                else: 
+                    st.session_state.logged_in = True
+                    st.session_state.role = user.get("role")
+                    st.session_state.user_id = user.get("mobile")
+                    st.session_state.name = user.get("name")
+                    st.session_state.father_name = user.get("father_name")
 
-                st.success("Login successful.")
-                st.rerun()
-
+                    st.success("Login successful.")
+                    st.rerun()
     # ================= FORCE PASSWORD CHANGE =================
     if st.session_state.get("force_password_change"):
 
