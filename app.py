@@ -1404,6 +1404,7 @@ elif menu == "Admin Panel":
             st.divider()
 
     # ================= MEETING HISTORY =================
+    # ================= MEETING HISTORY =================
     st.divider()
     st.subheader("Meeting History Viewer")
 
@@ -1414,14 +1415,22 @@ elif menu == "Admin Panel":
         for doc in all_attendance_docs:
             record = doc.to_dict()
             if "meeting_id" in record:
-                unique_meetings.add(record["meeting_id"])
+                m_id = record["meeting_id"]
+                # FIX: If it accidentally saved as a list, pull the first item out
+                if isinstance(m_id, list) and len(m_id) > 0:
+                    m_id = m_id[0]
+                unique_meetings.add(str(m_id)) # Force it to be text
         
         # Also check meeting_details (votes) for unique IDs in case no attendance was taken
         all_vote_docs = db.collection("meeting_details").stream()
         for doc in all_vote_docs:
             record = doc.to_dict()
             if "meeting_id" in record:
-                unique_meetings.add(record["meeting_id"])
+                m_id = record["meeting_id"]
+                # FIX: Same here
+                if isinstance(m_id, list) and len(m_id) > 0:
+                    m_id = m_id[0]
+                unique_meetings.add(str(m_id)) # Force it to be text
 
         meeting_list = sorted(list(unique_meetings), reverse=True)
 
@@ -1539,7 +1548,6 @@ elif menu == "Admin Panel":
 
     except Exception as e:
         st.error(f"Failed to load meeting history: {e}")
-
     # ======================================================
     # MEETING MANAGEMENT
     # ======================================================
