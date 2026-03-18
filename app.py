@@ -4,7 +4,7 @@ from firebase_admin import credentials, firestore
 import pandas as pd
 from datetime import datetime
 import bcrypt
-
+import matplotlib.pyplot as plt
 # ---------------- PAGE CONFIG ----------------
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -788,7 +788,7 @@ elif menu == "Dashboard":
 
     # ================= PIE CHARTS =================
     # It is usually best to put imports at the very top of your file, but this works here too!
-    import matplotlib.pyplot as plt
+  
 
     def draw_pie(data_dict, title):
         # Prevent crashes if a dictionary is somehow empty
@@ -824,7 +824,7 @@ elif menu == "Dashboard":
     # ================= CLEAN TABLE =================
     st.subheader("Submitted Votes")
 
-    import pandas as pd
+
     df_table = pd.DataFrame(rows)
 
     st.dataframe(
@@ -1511,7 +1511,7 @@ elif menu == "Admin Panel":
 
                     st.metric("Total Votes Submitted", len(vote_records))
 
-                    import matplotlib.pyplot as plt
+                    
 
                     def draw_pie(data_dict, title):
                         if not data_dict:
