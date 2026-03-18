@@ -195,7 +195,7 @@ with st.sidebar:
             "Plan Next Meeting",
             "Reports",
             "Public Notice Board",
-            "Transparent Fund Management",
+            "Fund Mngmnt",
             "Logout"
         ]
 
@@ -376,9 +376,10 @@ if menu == "Public Notice Board":
             st.markdown(" ")
 
 # ---------------- TRANSPARENT FUND MANAGEMENT ----------------
-elif menu == "Transparent Fund Management":
+# ---------------- FUND MNGMNT ----------------
+elif menu == "Fund Mngmnt":
 
-    st.title("💸 Transparent Fund Management")
+    st.title("💸 Fund Management")
     st.markdown("Track all financial inflows and outflows with complete transparency.")
     st.divider()
 
@@ -408,14 +409,14 @@ elif menu == "Transparent Fund Management":
 
     # ================= DISPLAY METRICS =================
     m1, m2, m3 = st.columns(3)
-    m1.metric("💰 Total Funds Received", f"₹ {total_received:,.2f}")
-    m2.metric("💸 Total Funds Spent", f"₹ {total_spent:,.2f}")
+    m1.metric("💰 Total Received", f"₹ {total_received:,.2f}")
+    m2.metric("💸 Total Spent", f"₹ {total_spent:,.2f}")
     
-    # Color code the remaining balance (Red if negative, Green if positive)
+    # Color code the remaining balance
     if remaining_balance < 0:
-        m3.metric("📉 Remaining Balance", f"₹ {remaining_balance:,.2f}")
+        m3.metric("📉 Remaining", f"₹ {remaining_balance:,.2f}")
     else:
-        m3.metric("🏦 Remaining Balance", f"₹ {remaining_balance:,.2f}")
+        m3.metric("🏦 Remaining", f"₹ {remaining_balance:,.2f}")
 
     st.divider()
 
@@ -425,9 +426,9 @@ elif menu == "Transparent Fund Management":
     # ---------------- TAB 1: FUNDS RECEIVED ----------------
     with tab_received:
         
-        # Admin Entry Form
+        # 🔒 ADMIN ONLY: Form to Add Received Funds
         if st.session_state.get("role") == "Admin":
-            with st.expander("➕ Add New Fund Received", expanded=False):
+            with st.expander("➕ Add New Fund Received (Admin Only)", expanded=False):
                 with st.form("add_received_form"):
                     col1, col2 = st.columns(2)
                     source = col1.text_input("Fund Received From (Source/Person)")
@@ -444,7 +445,7 @@ elif menu == "Transparent Fund Management":
                             st.warning("Source and a valid amount are required.")
                         else:
                             db.collection("funds_received").add({
-                                "date_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                "date_time": get_ist_time().strftime("%Y-%m-%d %H:%M") if 'get_ist_time' in globals() else datetime.now().strftime("%Y-%m-%d %H:%M"),
                                 "source": source.strip(),
                                 "amount": amount_rec,
                                 "mode": mode,
@@ -454,13 +455,11 @@ elif menu == "Transparent Fund Management":
                             st.success("Fund received record added!")
                             st.rerun()
 
-        # Display Received Data Table
+        # Display Received Data Table (Visible to all logged-in users)
         if received_list:
             df_rec = pd.DataFrame(received_list)
-            # Reorder columns for clean display
             df_rec = df_rec[["date_time", "source", "amount", "mode", "transaction_details"]]
             df_rec.columns = ["Date & Time", "Received From", "Amount (₹)", "Mode", "Transaction Info"]
-            # Sort by newest first
             df_rec = df_rec.sort_values(by="Date & Time", ascending=False)
             
             st.dataframe(df_rec, use_container_width=True, hide_index=True)
@@ -470,9 +469,9 @@ elif menu == "Transparent Fund Management":
     # ---------------- TAB 2: FUNDS SPENT ----------------
     with tab_spent:
 
-        # Admin Entry Form
+        # 🔒 ADMIN ONLY: Form to Add Spent Funds
         if st.session_state.get("role") == "Admin":
-            with st.expander("➕ Add New Fund Spent", expanded=False):
+            with st.expander("➕ Add New Fund Spent (Admin Only)", expanded=False):
                 with st.form("add_spent_form"):
                     col1, col2 = st.columns(2)
                     purpose = col1.text_input("Purpose / Work Details")
@@ -487,7 +486,7 @@ elif menu == "Transparent Fund Management":
                             st.warning("Purpose, Payee, and a valid amount are required.")
                         else:
                             db.collection("funds_spent").add({
-                                "date_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                "date_time": get_ist_time().strftime("%Y-%m-%d %H:%M") if 'get_ist_time' in globals() else datetime.now().strftime("%Y-%m-%d %H:%M"),
                                 "purpose": purpose.strip(),
                                 "payee": payee.strip(),
                                 "amount": amount_spent,
@@ -496,13 +495,11 @@ elif menu == "Transparent Fund Management":
                             st.success("Fund spent record added!")
                             st.rerun()
 
-        # Display Spent Data Table
+        # Display Spent Data Table (Visible to all logged-in users)
         if spent_list:
             df_spent = pd.DataFrame(spent_list)
-            # Reorder columns for clean display
             df_spent = df_spent[["date_time", "purpose", "payee", "amount"]]
             df_spent.columns = ["Date & Time", "Purpose / Work", "Paid To", "Amount (₹)"]
-            # Sort by newest first
             df_spent = df_spent.sort_values(by="Date & Time", ascending=False)
             
             st.dataframe(df_spent, use_container_width=True, hide_index=True)
