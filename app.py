@@ -652,6 +652,58 @@ elif menu == "Meetings":
 
         except Exception as e:
             st.error(f"Failed to submit attendance: {e}")
+# ================= LIVE ATTENDANCE SUMMARY =================
+    st.divider()
+    st.subheader("Live Attendance Summary")
+
+    try:
+        # Fetch all records for this specific meeting
+        attendance_records = list(
+            db.collection("attendance_details")
+            .where("meeting_id", "==", meeting_id)
+            .stream()
+        )
+
+        if attendance_records:
+            data = []
+            yes_count = 0
+            no_count = 0
+
+            for doc in attendance_records:
+                record = doc.to_dict()
+                status = record.get("attending", "No")
+                
+                if status == "Yes":
+                    yes_count += 1
+                else:
+                    no_count += 1
+
+                # Format the timestamp
+                submitted_at = record.get("submitted_at")
+                date_str = submitted_at.strftime("%Y-%m-%d %H:%M") if submitted_at else "N/A"
+
+                data.append({
+                    "Name": record.get("name", "").title(),
+                    "Date": date_str,
+                    "Attending": status,
+                    "Reason": record.get("reason", "")
+                })
+
+            # Display metrics
+            c1, c2 = st.columns(2)
+            c1.metric("🟢 Attending (Yes)", yes_count)
+            c2.metric("🔴 Not Attending (No)", no_count)
+
+            # Display table
+            import pandas as pd # Note: Better to move this to the very top of app.py later!
+            df = pd.DataFrame(data)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+        else:
+            st.info("No attendance records submitted yet.")
+
+    except Exception as e:
+        st.error(f"Could not load summary table: {e}")
 # ---------------- DASHBOARD ----------------
 # ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
@@ -835,89 +887,10 @@ elif menu == "Teams":
         st.write(f"👤 {data.get('name')} — {data.get('details')}")
 # ---------------- MEETINGS ----------------
 # ---------------- MEETINGS ----------------
-elif menu == "Meetings":
 
-    st.title("Meeting Attendance")
-
-    # ================= LOAD MEETING =================
-    try:
-        with st.spinner("Loading meeting details..."):
-            meeting_ref = db.collection("admin_settings").document("meeting_options")
-            meeting_doc = meeting_ref.get()
-    except Exception as e:
-        st.error(f"Error loading meeting configuration: {e}")
-        st.stop()
-
-    if not meeting_doc.exists:
-        st.error("Meeting not configured by admin.")
-        st.stop()
-
-    meeting_data = meeting_doc.to_dict()
-    meeting_id = meeting_data.get("meeting_id")
-    meeting_status = meeting_data.get("status", "Closed")
-
-    col1, col2 = st.columns(2)
-    col1.info(f"Meeting ID: {meeting_id}")
-    col2.info(f"Status: {meeting_status}")
-    
-    st.divider()
-
-    # ================= STATUS & LOGIN CHECK =================
-    if meeting_status != "Active":
-        st.warning("Meeting is currently closed. Attendance disabled.")
-        st.stop()
-
-    if not st.session_state.get("logged_in"):
-        st.warning("Please login to submit attendance.")
-        st.stop()
-
-    # ================= USER INFO =================
-    auto_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
-    user_id = st.session_state.get("user_id")
-    clean_name = auto_name.strip().lower()
-
-    st.text_input("Your Name", value=auto_name, disabled=True)
-
-    # ================= ATTENDANCE FORM =================
-    with st.form("attendance_form", clear_on_submit=False):
-
-        attending = st.radio("Will You Attend?", ["Yes", "No"])
-        reason = st.text_area("Reason (Required if No)")
-        submit = st.form_submit_button("Submit Attendance")
-
-        if submit:
-            if attending == "No" and not reason.strip():
-                st.warning("Reason is required if not attending.")
-                st.stop()
-
-            try:
-                with st.spinner("Submitting attendance..."):
-                    existing = list(
-                        db.collection("attendance_details")
-                        .where("meeting_id", "==", meeting_id)
-                        .where("user_id", "==", user_id)
-                        .stream()
-                    )
-
-                    if existing:
-                        st.error("You have already submitted attendance.")
-                        st.stop()
-
-                    db.collection("attendance_details").add({
-                        "meeting_id": meeting_id,
-                        "name": clean_name,
-                        "user_id": user_id,
-                        "attending": attending,
-                        "reason": reason.strip() if attending == "No" else "",
-                        "submitted_at": datetime.utcnow() # Ensure datetime is imported at the top of your file
-                    })
-
-                st.success("Attendance recorded successfully.")
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"Failed to submit attendance: {e}")
 # ---------------- PLAN NEXT MEETING ----------------
+#
+#
 elif menu == "Plan Next Meeting":
 
     st.title("Vote for Next Meeting")
