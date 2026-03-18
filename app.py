@@ -1413,7 +1413,7 @@ elif menu == "Admin Panel":
         # --- NEW: READ FROM THE MASTER LIST INSTEAD OF SCANNING EVERYTHING ---
         master_list_docs = db.collection("meetings_history_list").stream()
         
-        unique_meetings = []
+        unique_meetings = set()
         for doc in master_list_docs:
             record = doc.to_dict()
             if "meeting_id" in record:
