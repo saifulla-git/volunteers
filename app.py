@@ -1407,7 +1407,7 @@ elif menu == "Admin Panel":
     # MEETING MANAGEMENT
     # ======================================================
 
-    st.subheader("Meeting Management")
+  st.subheader("Meeting Management")
 
     meeting_ref = db.collection("admin_settings").document("meeting_options")
 
@@ -1458,10 +1458,9 @@ elif menu == "Admin Panel":
                 except Exception as e:
                     st.error(f"Meeting activation failed: {e}")
 
+    # ================= CLOSE OR REACTIVATE =================
     if current_status == "Active":
-
         st.divider()
-
         if st.button("Close Meeting"):
             try:
                 meeting_ref.update({"status": "Closed"})
@@ -1470,6 +1469,18 @@ elif menu == "Admin Panel":
 
             except Exception as e:
                 st.error(f"Failed to close meeting: {e}")
+                
+    elif current_status == "Closed" and current_meeting_id != "Not Set":
+        st.divider()
+        if st.button("Reactivate Current Meeting"):
+            try:
+                # Flips status back to Active without erasing data
+                meeting_ref.update({"status": "Active"})
+                st.success(f"Meeting {current_meeting_id} reactivated successfully.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Failed to reactivate meeting: {e}")
 #-----------------------------------------#
 # ---------------- LOGOUT ----------------
 #----------------------------------------#
