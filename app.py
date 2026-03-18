@@ -155,7 +155,6 @@ for key, value in default_states.items():
 
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
-   # Initialize menu state
 # ---------------- SIDEBAR ----------------
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
@@ -643,6 +642,7 @@ elif menu == "Meetings":
         except Exception as e:
             st.error(f"Failed to submit attendance: {e}")
 # ---------------- DASHBOARD ----------------
+# ---------------- DASHBOARD ----------------
 elif menu == "Dashboard":
 
     st.title("Meeting Analytics Dashboard")
@@ -696,10 +696,16 @@ elif menu == "Dashboard":
         data = vote.to_dict()
         rows.append(data)
 
-        agenda_count[data.get("agenda")] = agenda_count.get(data.get("agenda"), 0) + 1
-        date_count[data.get("date")] = date_count.get(data.get("date"), 0) + 1
-        time_count[data.get("time")] = time_count.get(data.get("time"), 0) + 1
-        place_count[data.get("place")] = place_count.get(data.get("place"), 0) + 1
+        # Safely get data, defaulting to "Not Specified" if blank
+        agenda = data.get("agenda") or "Not Specified"
+        date_val = data.get("date") or "Not Specified"
+        time_val = data.get("time") or "Not Specified"
+        place = data.get("place") or "Not Specified"
+
+        agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+        date_count[date_val] = date_count.get(date_val, 0) + 1
+        time_count[time_val] = time_count.get(time_val, 0) + 1
+        place_count[place] = place_count.get(place, 0) + 1
 
     total_votes = len(votes)
 
@@ -707,9 +713,15 @@ elif menu == "Dashboard":
     st.divider()
 
     # ================= PIE CHARTS =================
+    # It is usually best to put imports at the very top of your file, but this works here too!
     import matplotlib.pyplot as plt
 
     def draw_pie(data_dict, title):
+        # Prevent crashes if a dictionary is somehow empty
+        if not data_dict:
+            st.info(f"No data for {title}")
+            return
+            
         fig, ax = plt.subplots(figsize=(3,3))
         ax.pie(
             data_dict.values(),
@@ -719,6 +731,9 @@ elif menu == "Dashboard":
         )
         ax.set_title(title)
         st.pyplot(fig)
+        
+        # THE FIX: Always close the figure to prevent Streamlit memory warnings
+        plt.close(fig) 
 
     col1, col2 = st.columns(2)
 
