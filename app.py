@@ -157,6 +157,7 @@ for key, value in default_states.items():
 # ---------------- SIDEBAR ----------------
    # Initialize menu state
 # ---------------- SIDEBAR ----------------
+# ---------------- SIDEBAR ----------------
 with st.sidebar:
 
     st.markdown("## Volunteer Portal")
@@ -174,10 +175,11 @@ with st.sidebar:
         if st.session_state.menu not in options:
             st.session_state.menu = "Public Notice Board"
 
-        st.radio(
+        # Notice we removed key="menu" and added an index
+        selected_menu = st.radio(
             "Navigation",
             options,
-            key="menu",
+            index=options.index(st.session_state.menu),
             label_visibility="collapsed"
         )
 
@@ -200,12 +202,22 @@ with st.sidebar:
         if st.session_state.menu not in main_options:
             st.session_state.menu = "Dashboard"
 
-        st.radio(
+        # Notice we removed key="menu" and added an index
+        selected_menu = st.radio(
             "Navigation",
             main_options,
-            key="menu",
+            index=main_options.index(st.session_state.menu),
             label_visibility="collapsed"
         )
+
+    # ---------- THE FIX: FORCE SYNC ----------
+    # If what the user clicked doesn't match the memory, update it and instantly rerun!
+    if selected_menu != st.session_state.menu:
+        st.session_state.menu = selected_menu
+        st.rerun()
+
+    # Define the final 'menu' variable so the rest of your app knows what page to show
+    menu = st.session_state.menu
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
 # ---------------- PUBLIC NOTICE BOARD ----------------
