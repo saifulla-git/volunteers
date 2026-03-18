@@ -839,72 +839,84 @@ elif menu == "Meetings":
 
     st.title("Meeting Attendance")
 
-    # 🔍 Get current meeting
-    meeting_ref = db.collection("admin_settings").document("meeting_options")
-    meeting_doc = meeting_ref.get()
+    # ================= LOAD MEETING =================
+    try:
+        with st.spinner("Loading meeting details..."):
+            meeting_ref = db.collection("admin_settings").document("meeting_options")
+            meeting_doc = meeting_ref.get()
+    except Exception as e:
+        st.error(f"Error loading meeting configuration: {e}")
+        st.stop()
 
     if not meeting_doc.exists:
-        st.error("No meeting configured by admin.")
+        st.error("Meeting not configured by admin.")
         st.stop()
 
     meeting_data = meeting_doc.to_dict()
     meeting_id = meeting_data.get("meeting_id")
     meeting_status = meeting_data.get("status", "Closed")
 
-    st.info(f"Meeting ID: {meeting_id}")
-    st.info(f"Status: {meeting_status}")
-
+    col1, col2 = st.columns(2)
+    col1.info(f"Meeting ID: {meeting_id}")
+    col2.info(f"Status: {meeting_status}")
+    
     st.divider()
 
-    # 🚫 Block attendance if closed
+    # ================= STATUS & LOGIN CHECK =================
     if meeting_status != "Active":
-        st.warning("Meeting is closed. Attendance disabled.")
+        st.warning("Meeting is currently closed. Attendance disabled.")
         st.stop()
 
-    # ================= ATTENDANCE =================
     if not st.session_state.get("logged_in"):
-        st.info("Login required to submit attendance.")
+        st.warning("Please login to submit attendance.")
         st.stop()
 
+    # ================= USER INFO =================
     auto_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
     user_id = st.session_state.get("user_id")
     clean_name = auto_name.strip().lower()
 
     st.text_input("Your Name", value=auto_name, disabled=True)
 
-    with st.form("attendance_form"):
+    # ================= ATTENDANCE FORM =================
+    with st.form("attendance_form", clear_on_submit=False):
 
         attending = st.radio("Will You Attend?", ["Yes", "No"])
         reason = st.text_area("Reason (Required if No)")
         submit = st.form_submit_button("Submit Attendance")
 
         if submit:
-
             if attending == "No" and not reason.strip():
                 st.warning("Reason is required if not attending.")
                 st.stop()
 
-            existing = db.collection("attendance_details") \
-                .where("meeting_id", "==", meeting_id) \
-                .where("user_id", "==", user_id) \
-                .stream()
+            try:
+                with st.spinner("Submitting attendance..."):
+                    existing = list(
+                        db.collection("attendance_details")
+                        .where("meeting_id", "==", meeting_id)
+                        .where("user_id", "==", user_id)
+                        .stream()
+                    )
 
-            if list(existing):
-                st.error("Attendance already submitted.")
-                st.stop()
+                    if existing:
+                        st.error("You have already submitted attendance.")
+                        st.stop()
 
-            db.collection("attendance_details").add({
-                "meeting_id": meeting_id,
-                "name": clean_name,
-                "user_id": user_id,
-                "attending": attending,
-                "reason": reason.strip() if attending == "No" else "",
-                "submitted_at": datetime.utcnow()
-            })
+                    db.collection("attendance_details").add({
+                        "meeting_id": meeting_id,
+                        "name": clean_name,
+                        "user_id": user_id,
+                        "attending": attending,
+                        "reason": reason.strip() if attending == "No" else "",
+                        "submitted_at": datetime.utcnow() # Ensure datetime is imported at the top of your file
+                    })
 
-            st.success("Attendance recorded successfully.")
-            st.rerun()
-# ---------------- PLAN NEXT MEETING ----------------
+                st.success("Attendance recorded successfully.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Failed to submit attendance: {e}")
 # ---------------- PLAN NEXT MEETING ----------------
 elif menu == "Plan Next Meeting":
 
