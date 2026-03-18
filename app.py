@@ -607,6 +607,7 @@ elif menu == "Meetings":
     auto_name = f"{st.session_state.get('name')} / {st.session_state.get('father_name')}"
     user_id = st.session_state.get("user_id")
     clean_name = auto_name.strip().lower()
+    is_admin = st.session_state.get("role") == "Admin"
 
     st.text_input("Your Name", value=auto_name, disabled=True)
 
@@ -665,39 +666,49 @@ elif menu == "Meetings":
         )
 
         if attendance_records:
-            data = []
             yes_count = 0
             no_count = 0
+            admin_data = []
+            current_user_record = None
 
             for doc in attendance_records:
                 record = doc.to_dict()
                 status = record.get("attending", "No")
-                
+
                 if status == "Yes":
                     yes_count += 1
                 else:
                     no_count += 1
 
-                # Format the timestamp
-                submitted_at = record.get("submitted_at")
-                date_str = submitted_at.strftime("%Y-%m-%d %H:%M") if submitted_at else "N/A"
+                if record.get("user_id") == user_id:
+                    current_user_record = record
 
-                data.append({
-                    "Name": record.get("name", "").title(),
-                    "Date": date_str,
-                    "Attending": status,
-                    "Reason": record.get("reason", "")
-                })
+                if is_admin:
+                    submitted_at = record.get("submitted_at")
+                    date_str = submitted_at.strftime("%Y-%m-%d %H:%M") if submitted_at else "N/A"
+                    admin_data.append({
+                        "Name": record.get("name", "").title(),
+                        "Date": date_str,
+                        "Attending": status,
+                        "Reason": record.get("reason", "")
+                    })
 
             # Display metrics
             c1, c2 = st.columns(2)
             c1.metric("🟢 Attending (Yes)", yes_count)
             c2.metric("🔴 Not Attending (No)", no_count)
 
-            # Display table
-            import pandas as pd # Note: Better to move this to the very top of app.py later!
-            df = pd.DataFrame(data)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            if is_admin:
+                st.caption("Detailed attendance records, including absence reasons, are only visible to admins.")
+                df = pd.DataFrame(admin_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            elif current_user_record:
+                your_status = current_user_record.get("attending", "No")
+                st.info(f"Your response: {your_status}")
+                if your_status == "No" and current_user_record.get("reason"):
+                    st.caption(f"Your reason: {current_user_record.get('reason')}")
+            else:
+                st.info("You have not submitted your attendance yet.")
 
         else:
             st.info("No attendance records submitted yet.")
