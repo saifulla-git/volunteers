@@ -170,14 +170,14 @@ with st.sidebar:
         st.session_state.menu = "Public Notice Board"
 
     # ---------- BEFORE LOGIN ----------
+   # ---------- BEFORE LOGIN ----------
     if not st.session_state.logged_in:
 
-        options = ["Public Notice Board", "Login", "Change Password"]
+        options = ["Public Notice Board", "Transparent Fund Management", "Login", "Change Password"]
 
         if st.session_state.menu not in options:
             st.session_state.menu = "Public Notice Board"
 
-        # Notice we removed key="menu" and added an index
         selected_menu = st.radio(
             "Navigation",
             options,
@@ -195,6 +195,7 @@ with st.sidebar:
             "Plan Next Meeting",
             "Reports",
             "Public Notice Board",
+            "Transparent Fund Management",
             "Logout"
         ]
 
@@ -204,14 +205,12 @@ with st.sidebar:
         if st.session_state.menu not in main_options:
             st.session_state.menu = "Dashboard"
 
-        # Notice we removed key="menu" and added an index
         selected_menu = st.radio(
             "Navigation",
             main_options,
             index=main_options.index(st.session_state.menu),
             label_visibility="collapsed"
         )
-
     # ---------- THE FIX: FORCE SYNC ----------
     # If what the user clicked doesn't match the memory, update it and instantly rerun!
     if selected_menu != st.session_state.menu:
@@ -375,6 +374,140 @@ if menu == "Public Notice Board":
                     st.markdown("❤️ *You liked this*")
 
             st.markdown(" ")
+
+# ---------------- TRANSPARENT FUND MANAGEMENT ----------------
+elif menu == "Transparent Fund Management":
+
+    st.title("💸 Transparent Fund Management")
+    st.markdown("Track all financial inflows and outflows with complete transparency.")
+    st.divider()
+
+    # ================= FETCH DATA & CALCULATE TOTALS =================
+    # Fetch Received Funds
+    received_stream = db.collection("funds_received").stream()
+    received_list = []
+    total_received = 0.0
+
+    for doc in received_stream:
+        data = doc.to_dict()
+        received_list.append(data)
+        total_received += float(data.get("amount", 0))
+
+    # Fetch Spent Funds
+    spent_stream = db.collection("funds_spent").stream()
+    spent_list = []
+    total_spent = 0.0
+
+    for doc in spent_stream:
+        data = doc.to_dict()
+        spent_list.append(data)
+        total_spent += float(data.get("amount", 0))
+
+    # Calculate Remaining
+    remaining_balance = total_received - total_spent
+
+    # ================= DISPLAY METRICS =================
+    m1, m2, m3 = st.columns(3)
+    m1.metric("💰 Total Funds Received", f"₹ {total_received:,.2f}")
+    m2.metric("💸 Total Funds Spent", f"₹ {total_spent:,.2f}")
+    
+    # Color code the remaining balance (Red if negative, Green if positive)
+    if remaining_balance < 0:
+        m3.metric("📉 Remaining Balance", f"₹ {remaining_balance:,.2f}")
+    else:
+        m3.metric("🏦 Remaining Balance", f"₹ {remaining_balance:,.2f}")
+
+    st.divider()
+
+    # ================= TABS =================
+    tab_received, tab_spent = st.tabs(["📥 Funds Received", "📤 Funds Spent"])
+
+    # ---------------- TAB 1: FUNDS RECEIVED ----------------
+    with tab_received:
+        
+        # Admin Entry Form
+        if st.session_state.get("role") == "Admin":
+            with st.expander("➕ Add New Fund Received", expanded=False):
+                with st.form("add_received_form"):
+                    col1, col2 = st.columns(2)
+                    source = col1.text_input("Fund Received From (Source/Person)")
+                    amount_rec = col2.number_input("Amount (₹)", min_value=0.0, step=100.0)
+                    
+                    col3, col4 = st.columns(2)
+                    mode = col3.selectbox("Payment Mode", ["Online", "Cash", "Cheque"])
+                    trans_details = col4.text_input("Transaction Details (UPI Ref / Chq No.)")
+                    
+                    submit_rec = st.form_submit_button("Save Received Fund")
+                    
+                    if submit_rec:
+                        if source.strip() == "" or amount_rec <= 0:
+                            st.warning("Source and a valid amount are required.")
+                        else:
+                            db.collection("funds_received").add({
+                                "date_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                "source": source.strip(),
+                                "amount": amount_rec,
+                                "mode": mode,
+                                "transaction_details": trans_details.strip(),
+                                "added_by": st.session_state.get("name", "Admin")
+                            })
+                            st.success("Fund received record added!")
+                            st.rerun()
+
+        # Display Received Data Table
+        if received_list:
+            df_rec = pd.DataFrame(received_list)
+            # Reorder columns for clean display
+            df_rec = df_rec[["date_time", "source", "amount", "mode", "transaction_details"]]
+            df_rec.columns = ["Date & Time", "Received From", "Amount (₹)", "Mode", "Transaction Info"]
+            # Sort by newest first
+            df_rec = df_rec.sort_values(by="Date & Time", ascending=False)
+            
+            st.dataframe(df_rec, use_container_width=True, hide_index=True)
+        else:
+            st.info("No funds received records found.")
+
+    # ---------------- TAB 2: FUNDS SPENT ----------------
+    with tab_spent:
+
+        # Admin Entry Form
+        if st.session_state.get("role") == "Admin":
+            with st.expander("➕ Add New Fund Spent", expanded=False):
+                with st.form("add_spent_form"):
+                    col1, col2 = st.columns(2)
+                    purpose = col1.text_input("Purpose / Work Details")
+                    amount_spent = col2.number_input("Amount (₹)", min_value=0.0, step=100.0)
+                    
+                    payee = st.text_input("Person/Vendor Paid To")
+                    
+                    submit_spent = st.form_submit_button("Save Spent Fund")
+                    
+                    if submit_spent:
+                        if purpose.strip() == "" or amount_spent <= 0 or payee.strip() == "":
+                            st.warning("Purpose, Payee, and a valid amount are required.")
+                        else:
+                            db.collection("funds_spent").add({
+                                "date_time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                "purpose": purpose.strip(),
+                                "payee": payee.strip(),
+                                "amount": amount_spent,
+                                "added_by": st.session_state.get("name", "Admin")
+                            })
+                            st.success("Fund spent record added!")
+                            st.rerun()
+
+        # Display Spent Data Table
+        if spent_list:
+            df_spent = pd.DataFrame(spent_list)
+            # Reorder columns for clean display
+            df_spent = df_spent[["date_time", "purpose", "payee", "amount"]]
+            df_spent.columns = ["Date & Time", "Purpose / Work", "Paid To", "Amount (₹)"]
+            # Sort by newest first
+            df_spent = df_spent.sort_values(by="Date & Time", ascending=False)
+            
+            st.dataframe(df_spent, use_container_width=True, hide_index=True)
+        else:
+            st.info("No funds spent records found.")
 # ---------------- LOGIN ----------------
 # ---------------- LOGIN ----------------
 # ---------------- LOGIN ----------------
