@@ -1403,6 +1403,143 @@ elif menu == "Admin Panel":
 
             st.divider()
 
+    # ================= MEETING HISTORY =================
+    st.divider()
+    st.subheader("Meeting History Viewer")
+
+    try:
+        all_attendance_docs = db.collection("attendance_details").stream()
+        
+        unique_meetings = set()
+        for doc in all_attendance_docs:
+            record = doc.to_dict()
+            if "meeting_id" in record:
+                unique_meetings.add(record["meeting_id"])
+        
+        # Also check meeting_details (votes) for unique IDs in case no attendance was taken
+        all_vote_docs = db.collection("meeting_details").stream()
+        for doc in all_vote_docs:
+            record = doc.to_dict()
+            if "meeting_id" in record:
+                unique_meetings.add(record["meeting_id"])
+
+        meeting_list = sorted(list(unique_meetings), reverse=True)
+
+        if not meeting_list:
+            st.info("No past meeting records found in the database yet.")
+        else:
+            selected_meeting = st.selectbox(
+                "Select a past meeting to view its data:", 
+                ["-- Select a Meeting --"] + meeting_list
+            )
+
+            if selected_meeting != "-- Select a Meeting --":
+                st.markdown(f"### Data for Meeting: {selected_meeting}")
+                
+                # --- 1. ATTENDANCE DATA ---
+                st.subheader("1. Attendance Summary")
+                history_records = list(
+                    db.collection("attendance_details")
+                    .where("meeting_id", "==", selected_meeting)
+                    .stream()
+                )
+
+                if history_records:
+                    history_data = []
+                    h_yes_count = 0
+                    h_no_count = 0
+
+                    for doc in history_records:
+                        rec = doc.to_dict()
+                        h_status = rec.get("attending", "No")
+                        
+                        if h_status == "Yes":
+                            h_yes_count += 1
+                        else:
+                            h_no_count += 1
+
+                        h_submitted = rec.get("submitted_at")
+                        h_date_str = h_submitted.strftime("%Y-%m-%d %H:%M") if h_submitted else "N/A"
+
+                        history_data.append({
+                            "Name": rec.get("name", "").title(),
+                            "Date": h_date_str,
+                            "Attending": h_status,
+                            "Reason": rec.get("reason", "")
+                        })
+
+                    hc1, hc2 = st.columns(2)
+                    hc1.metric("🟢 Attending (Yes)", h_yes_count)
+                    hc2.metric("🔴 Not Attending (No)", h_no_count)
+
+                    import pandas as pd
+                    hdf = pd.DataFrame(history_data)
+                    st.dataframe(hdf, use_container_width=True, hide_index=True)
+                else:
+                    st.warning("No attendance records found for this meeting.")
+
+                st.divider()
+
+                # --- 2. VOTING DATA ---
+                st.subheader("2. Voting Results")
+                vote_records = list(
+                    db.collection("meeting_details")
+                    .where("meeting_id", "==", selected_meeting)
+                    .stream()
+                )
+
+                if vote_records:
+                    agenda_count = {}
+                    date_count = {}
+                    time_count = {}
+                    place_count = {}
+                    vote_rows = []
+
+                    for vote in vote_records:
+                        data = vote.to_dict()
+                        vote_rows.append(data)
+
+                        agenda = data.get("agenda") or "Not Specified"
+                        date_val = data.get("date") or "Not Specified"
+                        time_val = data.get("time") or "Not Specified"
+                        place = data.get("place") or "Not Specified"
+
+                        agenda_count[agenda] = agenda_count.get(agenda, 0) + 1
+                        date_count[date_val] = date_count.get(date_val, 0) + 1
+                        time_count[time_val] = time_count.get(time_val, 0) + 1
+                        place_count[place] = place_count.get(place, 0) + 1
+
+                    st.metric("Total Votes Submitted", len(vote_records))
+
+                    import matplotlib.pyplot as plt
+
+                    def draw_pie(data_dict, title):
+                        if not data_dict:
+                            st.info(f"No data for {title}")
+                            return
+                        fig, ax = plt.subplots(figsize=(3,3))
+                        ax.pie(data_dict.values(), labels=data_dict.keys(), autopct="%1.1f%%", startangle=90)
+                        ax.set_title(title)
+                        st.pyplot(fig)
+                        plt.close(fig) 
+
+                    vc1, vc2 = st.columns(2)
+                    with vc1:
+                        draw_pie(agenda_count, "Agenda")
+                        draw_pie(date_count, "Date")
+                    with vc2:
+                        draw_pie(time_count, "Time")
+                        draw_pie(place_count, "Place")
+
+                    st.markdown("**Submitted Votes Table**")
+                    vdf = pd.DataFrame(vote_rows)
+                    st.dataframe(vdf, use_container_width=True, hide_index=True)
+                else:
+                    st.warning("No voting records found for this meeting.")
+
+    except Exception as e:
+        st.error(f"Failed to load meeting history: {e}")
+
     # ======================================================
     # MEETING MANAGEMENT
     # ======================================================
