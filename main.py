@@ -5,10 +5,11 @@ from database import db
 
 app = FastAPI()
 
-# This is the "Permission Slip" (CORS)
+# This section tells Render to allow your computer (localhost) to connect
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # This allows your localhost to talk to Render
+    allow_origins=["*"], 
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -23,9 +24,12 @@ def read_root():
 
 @app.post("/add-volunteer")
 async def add_volunteer(volunteer: Volunteer):
-    doc_ref = db.collection("volunteers").document()
-    doc_ref.set({
-        "name": volunteer.name,
-        "email": volunteer.email
-    })
-    return {"message": "Volunteer added successfully!"}
+    try:
+        doc_ref = db.collection("volunteers").document()
+        doc_ref.set({
+            "name": volunteer.name,
+            "email": volunteer.email
+        })
+        return {"message": "Success! Volunteer added."}
+    except Exception as e:
+        return {"error": str(e)}
