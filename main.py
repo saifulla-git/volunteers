@@ -25,7 +25,7 @@ def read_root():
 @app.post("/add-volunteer")
 async def add_volunteer(volunteer: Volunteer):
     try:
-        doc_ref = db.collection("volunteers").document()
+        doc_ref = db.collection("registrations_requests").document()
         doc_ref.set({
             "name": volunteer.name,
             "email": volunteer.email
