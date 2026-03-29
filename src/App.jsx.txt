@@ -1,0 +1,58 @@
+import { useState } from 'react'
+import './App.css'
+
+function App() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('Waking up the server... please wait...')
+    
+    try {
+      const response = await fetch('https://volunteers-backend-k9a5.onrender.com/add-volunteer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setMessage('✅ Success! You are registered.')
+        setName(''); setEmail('')
+      } else {
+        setMessage('❌ Error: ' + (data.error || 'Server rejected request'))
+      }
+    } catch (err) {
+      setMessage('❌ Connection failed. Check if Render is "Live".')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="App">
+      <h1>Volunteer Registration</h1>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '300px', margin: '0 auto' }}>
+        <input 
+          type="text" placeholder="Full Name" value={name}
+          onChange={(e) => setName(e.target.value)} required 
+        />
+        <input 
+          type="email" placeholder="Email Address" value={email}
+          onChange={(e) => setEmail(e.target.value)} required 
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Processing...' : 'Join Now'}
+        </button>
+      </form>
+      <p style={{ marginTop: '20px', fontWeight: 'bold' }}>{message}</p>
+    </div>
+  )
+}
+
+export default App
