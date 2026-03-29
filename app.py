@@ -943,7 +943,7 @@ elif menu == "Dashboard":
         ax.set_title(title)
         st.pyplot(fig)
         
-        # THE FIX: Always close the figure to prevent Streamlit memory warnings
+        # THE FIX: Always close the figure to prevent Streamlit memory warnings#
         plt.close(fig) 
 
     col1, col2 = st.columns(2)
